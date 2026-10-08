@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+env:
+  SITE_URL: https://www.gdbrasilsolar.com.br
+
 jobs:
   web-deploy:
     name: FTP Deploy Plataforma Solar
@@ -12,7 +15,26 @@ jobs:
     steps:
     - name: 🚚 Baixando o código atualizado
       uses: actions/checkout@v4
-    
+
+    - name: 🔐 Gerando config/config.php a partir dos secrets
+      env:
+        DB_HOST: ${{ secrets.DB_HOST }}
+        DB_NAME: ${{ secrets.DB_NAME }}
+        DB_USER: ${{ secrets.DB_USER }}
+        DB_PASS: ${{ secrets.DB_PASS }}
+        APP_TOKEN: ${{ secrets.APP_TOKEN }}
+      run: |
+        php -r '
+          $cfg = [
+            "db_host"   => getenv("DB_HOST") ?: "localhost",
+            "db_name"   => (string) getenv("DB_NAME"),
+            "db_user"   => (string) getenv("DB_USER"),
+            "db_pass"   => (string) getenv("DB_PASS"),
+            "app_token" => (string) getenv("APP_TOKEN"),
+          ];
+          file_put_contents("config/config.php", "<?php\nreturn " . var_export($cfg, true) . ";\n");
+        '
+
     - name: 🚀 Enviando arquivos via FTP para a Hostinger
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
@@ -20,3 +42,28 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         server-dir: ./ # A conta FTP já abre dentro de public_html
+
+    - name: 🩺 Testando conexão com o MySQL
+      env:
+        DB_NAME: ${{ secrets.DB_NAME }}
+        DB_USER: ${{ secrets.DB_USER }}
+        DB_PASS: ${{ secrets.DB_PASS }}
+        APP_TOKEN: ${{ secrets.APP_TOKEN }}
+      run: |
+        faltando=""
+        for s in DB_NAME DB_USER DB_PASS APP_TOKEN; do
+          [ -z "${!s}" ] && faltando="$faltando $s"
+        done
+        if [ -n "$faltando" ]; then
+          echo "::error::Secrets ausentes:$faltando"
+          exit 1
+        fi
+        http=$(curl -sS -o resposta.json -w '%{http_code}' \
+          -H "X-Deploy-Token: $APP_TOKEN" "$SITE_URL/ops/db-test.php")
+        corpo=$(head -c 300 resposta.json | tr -d '\n')
+        if [ "$http" = "200" ] && grep -q '"ok":true' resposta.json; then
+          echo "::notice::Banco OK: $corpo"
+        else
+          echo "::error::Teste do banco falhou (HTTP $http): $corpo"
+          exit 1
+        fi
