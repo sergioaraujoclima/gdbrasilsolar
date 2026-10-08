@@ -19,4 +19,4 @@ jobs:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        server-dir: public_html/ # Envia direto para a raiz do seu domínio gdbrasilsolar.com.br
+        server-dir: ./ # A conta FTP já abre dentro de public_html
