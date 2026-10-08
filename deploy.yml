@@ -1,60 +1,22 @@
-name: Deploy para Hostinger
+name: Deploy Automático GDBrasilSolar
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
-
-concurrency:
-  group: deploy-hostinger
-  cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Validar e enviar via FTP
+  web-deploy:
+    name: FTP Deploy Plataforma Solar
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
-
-      - name: Configurar PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          extensions: mysqli, pdo_mysql, mbstring
-          tools: composer:v2
-
-      - name: Verificar sintaxe dos arquivos PHP
-        run: |
-          find . -name "*.php" -not -path "./vendor/*" -print0 \
-            | xargs -0 -n1 -P4 php -l > /dev/null
-
-      - name: Instalar dependências do Composer (se houver)
-        if: hashFiles('composer.json') != ''
-        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
-
-      - name: Enviar arquivos para a Hostinger
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          port: 21
-          local-dir: ./
-          server-dir: /public_html/
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/.github/**
-            **/node_modules/**
-            **/tests/**
-            **/*.sql
-            **/*.md
-            .env
-            .env.*
-            composer.json
-            composer.lock
-            phpunit.xml
+    - name: 🚚 Baixando o código atualizado
+      uses: actions/checkout@v4
+    
+    - name: 🚀 Enviando arquivos via FTP para a Hostinger
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        server-dir: public_html/ # Envia direto para a raiz do seu domínio gdbrasilsolar.com.br
