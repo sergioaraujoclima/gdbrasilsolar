@@ -126,3 +126,14 @@ function saldos_creditos(): array
     }
     return $saldos;
 }
+
+/** Fatura por id, somente se a unidade dela for visível ao usuário. */
+function buscar_fatura(int $id): ?array
+{
+    foreach (faturas_visiveis() as $f) {
+        if ((int) $f['id'] === $id) {
+            return $f;
+        }
+    }
+    return null;
+}

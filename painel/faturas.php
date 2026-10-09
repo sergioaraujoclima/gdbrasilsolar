@@ -7,17 +7,6 @@ require __DIR__ . '/../app/Faturas.php';
 exigir_login();
 $pdo = db();
 
-/** Fatura por id, somente se a unidade dela for visível ao usuário. */
-function buscar_fatura(int $id): ?array
-{
-    foreach (faturas_visiveis() as $f) {
-        if ((int) $f['id'] === $id) {
-            return $f;
-        }
-    }
-    return null;
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validar();
     $id      = (int) ($_POST['id'] ?? 0);
@@ -92,7 +81,11 @@ elseif ($form):
     $dec = fn (string $c, string $rotulo, int $casas = 2) => campo($c, $rotulo, $n($c, $casas), 'text', 'inputmode="decimal"');
     ?>
 <div class="cabecalho"><div><h1><?= $ver ? 'Fatura de ' . mes_br($ver['referencia']) : 'Nova fatura' ?></h1>
-  <?php if ($ver): ?><p>UC <?= e($ver['numero_uc']) ?>, <?= e($ver['distribuidora']) ?>.</p><?php endif; ?></div></div>
+  <?php if ($ver): ?><p>UC <?= e($ver['numero_uc']) ?>, <?= e($ver['distribuidora']) ?>.</p><?php endif; ?></div>
+  <?php if ($ver && $ver['arquivo_pdf']): ?><div class="form-acoes" style="margin:0">
+    <a class="botao botao-claro" href="/painel/fatura-arquivo.php?id=<?= (int) $ver['id'] ?>">Abrir o PDF</a>
+    <a class="botao botao-claro" href="/painel/fatura-arquivo.php?id=<?= (int) $ver['id'] ?>&amp;tipo=json">Baixar os dados lidos (JSON)</a>
+  </div><?php endif; ?></div>
 <form method="post" class="bloco">
   <?= csrf_campo() ?><input type="hidden" name="id" value="<?= (int) $f['id'] ?>">
   <div class="grade">
@@ -170,7 +163,10 @@ elseif ($form):
     $faturas = faturas_visiveis($filtro); ?>
 <div class="cabecalho">
   <div><h1>Faturas</h1><p>Faturas da distribuidora, ligadas às unidades geradoras e beneficiárias.</p></div>
-  <a class="botao" href="/painel/faturas.php?nova=1<?= $filtro ? '&unidade=' . $filtro : '' ?>">Nova fatura</a>
+  <div class="form-acoes" style="margin:0">
+    <a class="botao" href="/painel/anexar.php">Anexar fatura em PDF</a>
+    <a class="botao botao-claro" href="/painel/faturas.php?nova=1<?= $filtro ? '&unidade=' . $filtro : '' ?>">Digitar fatura</a>
+  </div>
 </div>
 <div class="bloco rolagem">
 <?php if (!$faturas): ?>
