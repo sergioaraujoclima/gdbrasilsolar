@@ -72,6 +72,24 @@ jobs:
           exit 1
         fi
 
+    # Aplica as migrations pendentes de database/migrations. Com [rollback]
+    # na mensagem do commit, antes desfaz as migrations cujos arquivos foram
+    # removidos do repositório.
+    - name: 🗄️ Aplicando migrations do banco
+      env:
+        APP_TOKEN: ${{ secrets.APP_TOKEN }}
+        ROLLBACK: ${{ contains(github.event.head_commit.message, '[rollback]') && '1' || '0' }}
+      run: |
+        http=$(curl -sS -o migrate.json -w '%{http_code}' \
+          -H "X-Deploy-Token: $APP_TOKEN" "$SITE_URL/ops/migrate.php?acao=up&rollback=$ROLLBACK")
+        corpo=$(head -c 900 migrate.json | tr -d '\n')
+        if [ "$http" = "200" ] && grep -q '"ok":true' migrate.json; then
+          echo "::notice::Migrations OK: $corpo"
+        else
+          echo "::error::Migrations falharam (HTTP $http): $corpo"
+          exit 1
+        fi
+
     # Só roda quando a mensagem do commit contém [growatt], para respeitar
     # o limite de chamadas da API.
     - name: ☀️ Testando conexão com a API da Growatt
@@ -93,3 +111,41 @@ jobs:
           echo "::error::Teste da Growatt falhou (HTTP $http): $corpo"
           exit 1
         fi
+
+    # Carga histórica da geração diária: só roda com [carga] na mensagem do
+    # commit. É retomável; se não terminar, basta disparar de novo.
+    - name: 📥 Carga histórica da Growatt
+      if: contains(github.event.head_commit.message, '[carga]')
+      timeout-minutes: 50
+      env:
+        APP_TOKEN: ${{ secrets.APP_TOKEN }}
+      run: |
+        chamar() {
+          curl -sS -m 120 -o "$2" -w '%{http_code}' \
+            -H "X-Deploy-Token: $APP_TOKEN" "$SITE_URL/ops/growatt-sync.php?acao=$1"
+        }
+        http=$(chamar usinas usinas.json)
+        echo "::notice::Usinas (HTTP $http): $(head -c 600 usinas.json | tr -d '\n')"
+        grep -q '"ok":true' usinas.json || exit 1
+
+        erros=0
+        for i in $(seq 1 150); do
+          http=$(chamar historico hist.json || true)
+          if [ "$(jq -r '.concluido // false' hist.json 2>/dev/null)" = "true" ]; then
+            break
+          fi
+          erro=$(jq -r '.erro // empty' hist.json 2>/dev/null || echo "HTTP $http")
+          if [ "$http" != "200" ] || [ -n "$erro" ]; then
+            erros=$((erros + 1))
+            echo "Tentativa $i: $erro (HTTP $http)"
+            if [ "$erros" -ge 6 ]; then
+              echo "::warning::Carga interrompida após $erros recusas seguidas: $erro"
+              break
+            fi
+            sleep 300
+          else
+            erros=0
+            sleep 2
+          fi
+        done
+        echo "::notice::Carga: $(jq -c '{concluido, usinas_detalhe}' hist.json | head -c 900)"

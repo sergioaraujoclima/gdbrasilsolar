@@ -12,7 +12,7 @@ header('Cache-Control: no-store');
 
 try {
     $cfg = require __DIR__ . '/../config/config.php';
-    $r   = (new Growatt($cfg))->listarUsinas();
+    $r   = (new Growatt($cfg['growatt_url'] ?? '', $cfg['growatt_token'] ?? ''))->listarUsinas();
     $j   = $r['json'];
 
     $codigo = is_array($j) ? ($j['error_code'] ?? null) : null;
