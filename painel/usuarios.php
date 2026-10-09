@@ -15,6 +15,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$alvo) {
         avisar('Usuário não encontrado.', 'erro');
+    } elseif ($acao === 'empresa') {
+        $empresa = (int) ($_POST['empresa_id'] ?? 0);
+        $existe  = $pdo->prepare('SELECT nome FROM empresas WHERE id = ? AND ativo = 1');
+        $existe->execute([$empresa]);
+        if ($nomeEmpresa = $existe->fetchColumn()) {
+            $pdo->prepare('UPDATE usuarios SET empresa_id = ?, atualizado_em = ? WHERE id = ?')->execute([$empresa, agora(), $id]);
+            avisar($alvo['nome'] . ' agora está na empresa ' . $nomeEmpresa . '.');
+        } else {
+            avisar('Escolha uma empresa ativa.', 'erro');
+        }
     } elseif ($id === (int) $admin['id']) {
         avisar('Você não pode alterar o próprio acesso por aqui.', 'erro');
     } elseif ($acao === 'aprovar') {
@@ -49,7 +59,7 @@ $demais    = array_filter($usuarios, fn ($u) => $u['status'] !== 'pendente');
 
 painel_inicio('Usuários', 'usuarios');
 ?>
-<div class="cabecalho"><div><h1>Usuários</h1><p>Aprove quem se cadastrou pelo site e defina a empresa de cada pessoa.</p></div></div>
+<div class="cabecalho"><div><h1>Usuários</h1><p>Aprove quem se cadastrou pelo site e defina a empresa de cada pessoa. As empresas são cadastradas em <a href="/painel/empresas.php">Empresas</a>.</p></div></div>
 
 <h2>Aguardando aprovação</h2>
 <?php if (!$pendentes): ?>
@@ -82,7 +92,11 @@ painel_inicio('Usuários', 'usuarios');
     <tbody>
     <?php foreach ($demais as $u): ?>
       <tr>
-        <td><?= e($u['nome']) ?></td><td><?= e($u['email']) ?></td><td><?= e($u['empresa'] ?: '–') ?></td>
+        <td><?= e($u['nome']) ?><?= (int) $u['id'] === (int) $admin['id'] ? ' (você)' : '' ?></td><td><?= e($u['email']) ?></td>
+        <td><form method="post" class="acoes" style="justify-content:flex-start"><?= csrf_campo() ?><input type="hidden" name="id" value="<?= (int) $u['id'] ?>">
+          <select name="empresa_id" aria-label="Empresa de <?= e($u['nome']) ?>" style="font:inherit;padding:.3rem .4rem;border:1px solid #9fb2c3;border-radius:6px">
+            <?php foreach ($empresas as $emp): ?><option value="<?= (int) $emp['id'] ?>"<?= (int) $emp['id'] === (int) $u['empresa_id'] ? ' selected' : '' ?>><?= e($emp['nome']) ?></option><?php endforeach; ?>
+          </select><button class="botao botao-claro botao-p" name="acao" value="empresa">Mudar</button></form></td>
         <td><?= $u['papel'] === 'admin' ? 'Administrador' : 'Cliente' ?></td>
         <td><span class="etiqueta etiqueta-<?= e($u['status']) ?>"><?= $u['status'] === 'ativo' ? 'Ativo' : 'Bloqueado' ?></span></td>
         <td><?= data_br($u['ultimo_acesso']) ?></td>

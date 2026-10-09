@@ -160,39 +160,79 @@ elseif ($form):
   </div>
 </form>
 <?php else:
-    $faturas = faturas_visiveis($filtro); ?>
+    $faturas = faturas_visiveis($filtro);
+    // Agrupa por unidade, com os meses em ordem
+    $grupos = [];
+    foreach ($faturas as $f) {
+        $grupos[$f['unidade_id']][] = $f;
+    }
+    foreach ($grupos as &$lista) {
+        usort($lista, fn ($a, $b) => strcmp($a['referencia'], $b['referencia']));
+    }
+    unset($lista);
+    uasort($grupos, fn ($a, $b) => [$b[0]['tipo_uc'], $a[0]['numero_uc']] <=> [$a[0]['tipo_uc'], $b[0]['numero_uc']]);
+    $somar = ['valor_total', 'consumo_medido_kwh', 'consumo_faturado_kwh', 'energia_injetada_kwh', 'creditos_utilizados_kwh'];
+    $geral = array_fill_keys($somar, 0.0) + ['saldo' => 0.0, 'faturas' => 0];
+    ?>
 <div class="cabecalho">
-  <div><h1>Faturas</h1><p>Faturas da distribuidora, ligadas às unidades geradoras e beneficiárias.</p></div>
+  <div><h1>Faturas</h1><p>Faturas de cada unidade consumidora, mês a mês, com o acumulado da unidade e o total geral.</p></div>
   <div class="form-acoes" style="margin:0">
     <a class="botao" href="/painel/anexar.php">Anexar fatura em PDF</a>
     <a class="botao botao-claro" href="/painel/faturas.php?nova=1<?= $filtro ? '&unidade=' . $filtro : '' ?>">Digitar fatura</a>
   </div>
 </div>
-<div class="bloco rolagem">
+<?php if ($filtro): ?><p style="margin-bottom:1rem"><a href="/painel/faturas.php">Ver as faturas de todas as unidades</a></p><?php endif; ?>
 <?php if (!$faturas): ?>
-  <p class="vazio">Nenhuma fatura cadastrada<?= $filtro ? ' para esta unidade' : '' ?>.</p>
+  <div class="bloco"><p class="vazio">Nenhuma fatura cadastrada<?= $filtro ? ' para esta unidade' : '' ?>.</p></div>
 <?php else: ?>
-  <table>
-    <thead><tr><th>Referência</th><th>UC</th><th>Papel</th><?php if (eh_admin()): ?><th>Empresa</th><?php endif; ?><th>Vencimento</th><th>Pagamento</th><th class="n">Valor</th><th class="n">Consumo faturado (kWh)</th><th class="n">Injetado (kWh)</th><th class="n">Créditos usados (kWh)</th><th class="n">Saldo (kWh)</th></tr></thead>
+<div class="bloco rolagem">
+  <table class="agrupada">
+    <thead><tr><th>Referência</th><th>Vencimento</th><th>Pagamento</th><th class="n">Valor</th><th class="n">Consumo medido (kWh)</th><th class="n">Consumo faturado (kWh)</th><th class="n">Injetado (kWh)</th><th class="n">Créditos usados (kWh)</th><th class="n">Saldo (kWh)</th></tr></thead>
+    <?php foreach ($grupos as $lista): $p = $lista[0]; $sub = array_fill_keys($somar, 0.0); $saldo = null; ?>
     <tbody>
-    <?php foreach ($faturas as $f): ?>
+      <tr class="grupo"><th colspan="9" scope="rowgroup">UC <?= e($p['numero_uc']) ?>
+        <span class="etiqueta etiqueta-<?= e($p['tipo_uc']) ?>"><?= $p['tipo_uc'] === 'geradora' ? 'Geradora' : 'Beneficiária' ?></span>
+        <?php if (eh_admin()): ?><span class="grupo-nota"><?= e($p['empresa']) ?></span><?php endif; ?></th></tr>
+      <?php foreach ($lista as $f):
+          foreach ($somar as $c) { $sub[$c] += (float) $f[$c]; }
+          $saldo = $f['saldo_creditos_kwh'] ?? $saldo; ?>
       <tr>
         <td><a href="/painel/faturas.php?ver=<?= (int) $f['id'] ?>"><?= mes_br($f['referencia']) ?></a></td>
-        <td><?= e($f['numero_uc']) ?></td>
-        <td><span class="etiqueta etiqueta-<?= e($f['tipo_uc']) ?>"><?= $f['tipo_uc'] === 'geradora' ? 'Geradora' : 'Beneficiária' ?></span></td>
-        <?php if (eh_admin()): ?><td><?= e($f['empresa']) ?></td><?php endif; ?>
         <td><?= data_br($f['vencimento']) ?></td>
         <td><span class="etiqueta etiqueta-<?= e($f['situacao_pagamento']) ?>"><?= $f['situacao_pagamento'] === 'paga' ? 'Paga' : 'Em aberto' ?></span></td>
         <td class="n"><?= brl($f['valor_total']) ?></td>
+        <td class="n"><?= num($f['consumo_medido_kwh']) ?></td>
         <td class="n"><?= num($f['consumo_faturado_kwh']) ?></td>
         <td class="n"><?= num($f['energia_injetada_kwh']) ?></td>
         <td class="n"><?= num($f['creditos_utilizados_kwh']) ?></td>
         <td class="n"><?= num($f['saldo_creditos_kwh'], 1) ?></td>
       </tr>
-    <?php endforeach; ?>
+      <?php endforeach;
+          foreach ($somar as $c) { $geral[$c] += $sub[$c]; }
+          $geral['saldo'] += (float) $saldo; $geral['faturas'] += count($lista); ?>
+      <tr class="subtotal">
+        <td colspan="3">Acumulado da UC (<?= count($lista) ?> fatura<?= count($lista) === 1 ? '' : 's' ?>)</td>
+        <td class="n"><?= brl($sub['valor_total']) ?></td>
+        <td class="n"><?= num($sub['consumo_medido_kwh']) ?></td>
+        <td class="n"><?= num($sub['consumo_faturado_kwh']) ?></td>
+        <td class="n"><?= num($sub['energia_injetada_kwh']) ?></td>
+        <td class="n"><?= num($sub['creditos_utilizados_kwh']) ?></td>
+        <td class="n"><?= $saldo !== null ? num($saldo, 1) : '–' ?></td>
+      </tr>
     </tbody>
+    <?php endforeach; ?>
+    <tfoot><tr>
+      <td colspan="3">Total de todas as unidades (<?= $geral['faturas'] ?> fatura<?= $geral['faturas'] === 1 ? '' : 's' ?>)</td>
+      <td class="n"><?= brl($geral['valor_total']) ?></td>
+      <td class="n"><?= num($geral['consumo_medido_kwh']) ?></td>
+      <td class="n"><?= num($geral['consumo_faturado_kwh']) ?></td>
+      <td class="n"><?= num($geral['energia_injetada_kwh']) ?></td>
+      <td class="n"><?= num($geral['creditos_utilizados_kwh']) ?></td>
+      <td class="n"><?= num($geral['saldo'], 1) ?></td>
+    </tr></tfoot>
   </table>
-<?php endif; ?>
+  <p class="nota" style="margin-top:.9rem;color:var(--tinta-2)">Na coluna Saldo, o acumulado mostra o saldo mais recente da unidade (saldo não se soma entre meses); o total geral soma o saldo mais recente de cada unidade.</p>
 </div>
+<?php endif; ?>
 <?php endif;
 painel_fim();

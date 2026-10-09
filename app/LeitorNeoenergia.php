@@ -96,7 +96,7 @@ class LeitorNeoenergia
         if (preg_match_all("/^\s*(\d{4,})\s+Energia Ativa\s+\S.*?\s+($n)\s+($n)\s+($n)\s+($n)\s*$/mu", $t, $mm, PREG_SET_ORDER)) {
             $medido = 0.0;
             foreach ($mm as $m) {
-                $medidor = $m[1];
+                $medidor ??= $m[1]; // o primeiro é o medidor atual
                 $medido += (self::numero($m[3]) - self::numero($m[2])) * self::numero($m[4]);
             }
             $medido = round($medido, 3);

@@ -9,9 +9,12 @@ function painel_inicio(string $titulo, string $secao): void
         'usinas'    => ['/painel/usinas.php', 'Usinas'],
         'unidades'  => ['/painel/unidades.php', 'Unidades consumidoras'],
         'faturas'   => ['/painel/faturas.php', 'Faturas'],
+        'creditos'  => ['/painel/creditos.php', 'Créditos'],
+        'rateios'   => ['/painel/rateios.php', 'Rateios de crédito'],
     ];
     if ($u['papel'] === 'admin') {
         $pendentes = (int) db()->query("SELECT COUNT(*) FROM usuarios WHERE status = 'pendente'")->fetchColumn();
+        $menu['empresas'] = ['/painel/empresas.php', 'Empresas'];
         $menu['usuarios'] = ['/painel/usuarios.php', 'Usuários' . ($pendentes ? " ($pendentes)" : '')];
         $menu['importar'] = ['/painel/importar.php', 'Importar dados'];
     }
@@ -26,7 +29,7 @@ function painel_inicio(string $titulo, string $secao): void
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/base.css?v=1">
-<link rel="stylesheet" href="/assets/css/painel.css?v=1">
+<link rel="stylesheet" href="/assets/css/painel.css?v=2">
 </head>
 <body class="painel">
 <aside class="lateral">

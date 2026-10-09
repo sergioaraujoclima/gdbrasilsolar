@@ -81,3 +81,23 @@ legend { font: 600 1.05rem var(--titulo); color: var(--noite); padding: 0; margi
   .lateral-pe { margin: 0 0 0 auto; display: flex; gap: 0.75rem; }
   .usina-cartao dl { grid-template-columns: 1fr 1fr; }
 }
+
+/* Tendência do saldo de créditos */
+.etiqueta-crescendo { background: #e7f5ee; color: #14633f; }
+.etiqueta-diminuindo { background: #fbe9e7; color: #8c1d18; }
+.etiqueta-estavel { background: var(--ceu); color: var(--noite); }
+.etiqueta-sem_historico { background: #eef1f4; color: var(--tinta-2); }
+.conteudo h3 { font-size: 1.05rem; color: var(--noite); }
+
+/* Tabela agrupada por unidade consumidora */
+.agrupada tr.grupo th { background: var(--noite); color: #fff; font-size: 0.98rem; padding: 0.7rem 0.75rem; }
+.agrupada tr.grupo .etiqueta { margin-left: 0.6rem; }
+.agrupada .grupo-nota { margin-left: 0.6rem; font-weight: 400; color: #c4d6e6; }
+.agrupada tr.subtotal td { font-weight: 600; background: #f4f8fb; border-bottom: 0; padding-bottom: 1.4rem; }
+.agrupada tbody + tbody tr.grupo th { border-top: 0; }
+.agrupada tfoot td { background: #fff4d6; }
+
+/* Cabeçalhos longos quebram linha para a tabela caber sem rolagem */
+th { white-space: normal; vertical-align: bottom; }
+.agrupada tr.grupo th { white-space: nowrap; }
+.indicadores + .bloco, .indicadores + .usinas-resumo { margin-top: 1.25rem; }

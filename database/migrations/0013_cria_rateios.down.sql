@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS rateio_itens;
+DROP TABLE IF EXISTS rateios;
