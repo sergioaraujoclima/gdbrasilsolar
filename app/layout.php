@@ -29,7 +29,7 @@ function painel_inicio(string $titulo, string $secao): void
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/base.css?v=1">
-<link rel="stylesheet" href="/assets/css/painel.css?v=3">
+<link rel="stylesheet" href="/assets/css/painel.css?v=4">
 </head>
 <body class="painel">
 <aside class="lateral">
@@ -54,6 +54,20 @@ function painel_inicio(string $titulo, string $secao): void
 function painel_fim(): void
 {
     echo "</main>\n</body>\n</html>\n";
+}
+
+/** Etiqueta do papel da unidade na compensação, com ícone: sol para geradora, casa com raio para beneficiária. */
+function etiqueta_papel(string $tipo): string
+{
+    if ($tipo === 'geradora') {
+        $icone = '<circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>';
+        $nome  = 'Geradora';
+    } else {
+        $icone = '<path d="M2.2 7.6 8 2.3l5.8 5.3V14H2.2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.9 5.8 6.3 9.6h1.8l-.7 2.9 2.8-4H8.3z" fill="currentColor"/>';
+        $nome  = 'Beneficiária';
+        $tipo  = 'beneficiaria';
+    }
+    return '<span class="etiqueta etiqueta-papel etiqueta-' . $tipo . '"><svg viewBox="0 0 16 16" aria-hidden="true">' . $icone . '</svg>' . $nome . '</span>';
 }
 
 /** Campo de formulário com rótulo. */

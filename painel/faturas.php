@@ -195,10 +195,12 @@ elseif ($form):
     <thead><tr><th>Referência</th><th>Vencimento</th><th>Pagamento</th><th class="n">Valor</th><th class="n">Consumo medido (kWh)</th><th class="n">Consumo faturado (kWh)</th><th class="n">Injetado (kWh)</th><th class="n">Créditos usados (kWh)</th><th class="n">Saldo (kWh)</th></tr></thead>
     <?php foreach ($grupos as $lista): $p = $lista[0]; $sub = array_fill_keys($somar, 0.0); $saldo = null; ?>
     <tbody>
-      <tr class="grupo"><th colspan="9" scope="rowgroup"><?= e(nome_uc($p)) ?>
-        <span class="etiqueta etiqueta-<?= e($p['tipo_uc']) ?>"><?= $p['tipo_uc'] === 'geradora' ? 'Geradora' : 'Beneficiária' ?></span>
-        <span class="grupo-nota"><?= e(endereco_uc($p)) ?><?php if (eh_admin()): ?> | <?= e($p['empresa']) ?><?php endif; ?></span>
-        <a class="grupo-link" href="/painel/unidades.php?editar=<?= (int) $p['unidade_id'] ?>">Editar unidade</a></th></tr>
+      <tr class="grupo"><th colspan="9" scope="rowgroup">
+        <a class="grupo-link" href="/painel/unidades.php?editar=<?= (int) $p['unidade_id'] ?>">Editar unidade</a>
+        <span class="grupo-numero">UC <?= e($p['numero_uc']) ?></span>
+        <?= etiqueta_papel($p['tipo_uc']) ?>
+        <span class="grupo-apelido"><?= $p['apelido'] ? e($p['apelido']) : 'Sem nome: defina um apelido em Editar unidade' ?></span>
+        <span class="grupo-nota"><?= e(endereco_uc($p)) ?><?php if (eh_admin()): ?> | <?= e($p['empresa']) ?><?php endif; ?></span></th></tr>
       <?php foreach ($lista as $f):
           foreach ($somar as $c) { $sub[$c] += (float) $f[$c]; }
           $saldo = $f['saldo_creditos_kwh'] ?? $saldo; ?>

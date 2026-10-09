@@ -92,7 +92,7 @@ painel_inicio('Créditos', 'creditos');
     <?php foreach ($destinos as $id => $r): $p = (float) ($pctAtual[$id] ?? 0); ?>
       <tr>
         <td><a href="/painel/faturas.php?unidade=<?= $id ?>"><?= e(nome_uc($unidades[$id])) ?></a></td>
-        <td><span class="etiqueta etiqueta-<?= e($unidades[$id]['tipo']) ?>"><?= $id === $gid ? 'Geradora' : 'Beneficiária' ?></span></td>
+        <td><?= etiqueta_papel($id === $gid ? 'geradora' : 'beneficiaria') ?></td>
         <td class="n"><?= num($r['saldo'], 1) ?></td>
         <td><span class="etiqueta etiqueta-<?= $r['tendencia'] ?>"><?= rotulo_tendencia($r['tendencia']) ?></span></td>
         <td class="n"><?= num($r['consumo_medio']) ?></td>

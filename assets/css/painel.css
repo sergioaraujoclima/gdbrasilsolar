@@ -107,3 +107,13 @@ th { white-space: normal; vertical-align: bottom; }
 td small { color: var(--tinta-2); font-size: 0.86rem; white-space: normal; }
 .agrupada .grupo-link { float: right; color: var(--sol); font-weight: 500; font-size: 0.9rem; }
 .agrupada tr.grupo th { white-space: normal; }
+
+/* Papel da unidade, com ícone */
+.etiqueta-papel { display: inline-flex; align-items: center; gap: 0.3rem; vertical-align: middle; }
+.etiqueta-papel svg { width: 0.95rem; height: 0.95rem; flex: none; }
+.etiqueta-geradora { background: #fff0cc; color: #7a4b00; }
+
+/* Cabeçalho de cada unidade na lista de faturas */
+.agrupada .grupo-numero { font-size: 1.05rem; }
+.agrupada .grupo-apelido { display: block; font-size: 0.9rem; font-weight: 500; color: var(--sol); margin-top: 0.15rem; }
+.agrupada .grupo-nota { display: block; margin-left: 0; font-size: 0.86rem; }

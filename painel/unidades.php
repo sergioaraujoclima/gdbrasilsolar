@@ -113,7 +113,7 @@ if ($form):
     <?php foreach ($unidades as $c): ?>
       <tr>
         <td><strong><?= e(nome_uc($c)) ?></strong><br><small><?= e(endereco_uc($c)) ?></small></td>
-        <td><span class="etiqueta etiqueta-<?= e($c['tipo']) ?>"><?= $c['tipo'] === 'geradora' ? 'Geradora' : 'Beneficiária' ?></span></td>
+        <td><?= etiqueta_papel($c['tipo']) ?></td>
         <td><?= $c['tipo'] === 'geradora' ? ($c['usina'] ? 'Usina ' . e($c['usina']) : 'Sem usina') : ($c['uc_geradora'] ? 'Recebe de ' . e(nome_uc(['numero_uc' => $c['uc_geradora'], 'apelido' => $c['apelido_geradora']])) : 'Sem geradora') ?></td>
         <td><?= e($c['distribuidora']) ?></td><td><?= e($c['classificacao']) ?></td><td><?= e($c['titular_nome']) ?></td>
         <td><div class="acoes">

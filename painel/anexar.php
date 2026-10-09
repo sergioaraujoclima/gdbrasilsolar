@@ -22,9 +22,19 @@ function caminho_temporario(string $pasta, string $token): string
 /** Unidade já cadastrada com este número, mesmo fora da empresa do usuário. */
 function unidade_por_numero(PDO $pdo, ?string $numero): ?array
 {
-    $s = $pdo->prepare('SELECT * FROM unidades_consumidoras WHERE distribuidora = ? AND numero_uc = ?');
-    $s->execute([LeitorNeoenergia::DISTRIBUIDORA, (string) $numero]);
-    return $s->fetch() ?: null;
+    // compara só os dígitos: "129756100966" e "1.297.561.009-66" são a mesma unidade
+    $digitos = preg_replace('/\D/', '', (string) $numero);
+    if ($digitos === '') {
+        return null;
+    }
+    $s = $pdo->prepare('SELECT * FROM unidades_consumidoras WHERE distribuidora = ?');
+    $s->execute([LeitorNeoenergia::DISTRIBUIDORA]);
+    foreach ($s->fetchAll() as $c) {
+        if (preg_replace('/\D/', '', $c['numero_uc']) === $digitos) {
+            return $c;
+        }
+    }
+    return null;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -77,12 +87,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $u = $lido['unidade'];
     $f = $lido['fatura'];
     $referencia = referencia_iso($f['referencia'] ?? '');
+
+    // Faturas antigas não trazem o número da UC: vale a unidade escolhida ou o número digitado
+    $escolhida = null;
+    if (!$u['numero_uc']) {
+        $escolhida = buscar_unidade((int) ($_POST['unidade_existente'] ?? 0));
+        $u['numero_uc'] = $escolhida ? $escolhida['numero_uc'] : texto($_POST['numero_uc_digitado'] ?? '');
+        $f['numero_uc'] = $u['numero_uc'];
+    }
     if (!$u['numero_uc'] || !$referencia) {
-        avisar('Sem o número da UC e o mês de referência não dá para gravar. Use "Digitar fatura".', 'erro');
+        avisar(!$referencia ? 'Não encontrei o mês de referência nesta fatura. Use "Digitar fatura".'
+            : 'Escolha a unidade desta fatura ou digite o número da UC.', 'erro');
         redirecionar('/painel/anexar.php?t=' . $token);
     }
 
-    $unidade = unidade_por_numero($pdo, $u['numero_uc']);
+    $unidade = $escolhida ?? unidade_por_numero($pdo, $u['numero_uc']);
     if ($unidade && escopo() !== null && (int) $unidade['empresa_id'] !== escopo()) {
         avisar('Esta unidade consumidora está cadastrada em outra empresa.', 'erro');
         redirecionar('/painel/anexar.php?t=' . $token);
@@ -176,7 +195,7 @@ if (!$lido): ?>
 <div class="cabecalho"><div><h1>Conferir a fatura lida</h1>
   <p>Nada foi gravado ainda. Confira os dados e confirme.</p></div></div>
 
-<?php foreach ($lido['avisos'] as $a): ?><p class="aviso aviso-info"><?= e($a) ?> Você poderá corrigir o campo depois de gravar.</p><?php endforeach; ?>
+<?php foreach ($lido['avisos'] as $a): ?><p class="aviso aviso-info"><?= e($a) ?> <?= str_contains($a, 'unidade consumidora') ? 'Informe abaixo de qual unidade é esta fatura.' : 'Você poderá corrigir o campo depois de gravar.' ?></p><?php endforeach; ?>
 <?php if ($lido['soma_confere']): ?><p class="aviso">A soma dos <?= count($f['itens']) ?> itens confere com o total a pagar: <?= brl($f['valor_total']) ?>.</p><?php endif; ?>
 <?php if ($jaExiste): ?><p class="aviso aviso-info">Já existe uma fatura de <?= mes_br($ref) ?> para esta unidade. Ao confirmar, ela será substituída pelos dados deste PDF.</p><?php endif; ?>
 <?php if ($deOutra): ?><p class="aviso aviso-erro">Esta unidade consumidora está cadastrada em outra empresa. Não é possível gravar esta fatura.</p><?php endif; ?>
@@ -186,7 +205,7 @@ if (!$lido): ?>
 
   <div class="bloco">
     <h2 style="margin-top:0"><?= $unidade ? e(nome_uc($unidade)) : 'Unidade consumidora ' . e($u['numero_uc'] ?: 'não identificada') ?>
-      <?php if ($unidade): ?><span class="etiqueta">Já cadastrada</span><?php else: ?><span class="etiqueta etiqueta-pendente">Nova: será cadastrada</span><?php endif; ?></h2>
+      <?php if ($unidade): ?><span class="etiqueta">Já cadastrada</span><?php elseif ($u['numero_uc']): ?><span class="etiqueta etiqueta-pendente">Nova: será cadastrada</span><?php endif; ?></h2>
     <p class="endereco" style="margin:.4rem 0 1rem"><?= e(endereco_uc($u)) ?></p>
     <dl class="dados">
       <div><dt>Titular</dt><dd><?= e($u['titular_nome'] ?: '–') ?></dd></div>
@@ -194,8 +213,14 @@ if (!$lido): ?>
       <div><dt>Fornecimento</dt><dd><?= e($u['tipo_fornecimento'] ?: '–') ?></dd></div>
       <div><dt>Medidor</dt><dd><?= e($u['medidor'] ?: '–') ?></dd></div>
     </dl>
+    <?php if (!$u['numero_uc']): ?>
+    <fieldset><legend>De qual unidade é esta fatura?</legend><div class="grade">
+      <?= selecao('unidade_existente', 'Unidade já cadastrada', opcoes_uc(unidades_visiveis()), '', true) ?>
+      <?= campo('numero_uc_digitado', 'Ou digite o número da UC (unidade nova)', '', 'text', 'maxlength="30" placeholder="Ex.: 1.297.561.009-66"') ?>
+    </div></fieldset>
+    <?php endif; ?>
     <?php if (!$unidade): ?>
-    <fieldset><legend>Complete o cadastro da nova unidade</legend><div class="grade">
+    <fieldset><legend><?= $u['numero_uc'] ? 'Complete o cadastro da nova unidade' : 'Preencha somente se a unidade for nova' ?></legend><div class="grade">
       <?= campo('apelido', 'Nome ou apelido da unidade', '', 'text', 'maxlength="80" placeholder="Ex.: Pivô 13B"') ?>
       <?php if (eh_admin()): ?><?= selecao('empresa_id', 'Empresa', array_column(empresas_disponiveis(), 'nome', 'id'), 1) ?><?php endif; ?>
       <?= selecao('tipo', 'Papel na compensação', ['geradora' => 'Geradora (tem usina)', 'beneficiaria' => 'Beneficiária (recebe créditos)'], $u['tipo'], $u['tipo'] === '') ?>
@@ -238,7 +263,7 @@ if (!$lido): ?>
   </div>
 
   <div class="form-acoes">
-    <?php if (!$deOutra): ?><button class="botao" name="etapa" value="confirmar"><?= $unidade ? 'Gravar fatura' : 'Cadastrar unidade e gravar fatura' ?></button><?php endif; ?>
+    <?php if (!$deOutra): ?><button class="botao" name="etapa" value="confirmar"><?= ($unidade || !$u['numero_uc']) ? 'Gravar fatura' : 'Cadastrar unidade e gravar fatura' ?></button><?php endif; ?>
     <button class="botao botao-claro" name="etapa" value="cancelar" formnovalidate>Descartar</button>
   </div>
 </form>

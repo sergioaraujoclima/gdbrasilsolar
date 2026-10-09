@@ -116,7 +116,7 @@ if (!$geradoras): ?>
     <?php foreach ($candidatas as $id => $c): $r = $resumos[$id]; $p = $pct[$id] ?? null; ?>
       <tr>
         <td><?= e(nome_uc($c)) ?><?= $id === $gid ? ' (fica na própria geradora)' : '' ?><br><small><?= e(endereco_uc($c)) ?></small></td>
-        <td><span class="etiqueta etiqueta-<?= e($c['tipo']) ?>"><?= $c['tipo'] === 'geradora' ? 'Geradora' : 'Beneficiária' ?></span></td>
+        <td><?= etiqueta_papel($c['tipo']) ?></td>
         <td class="n"><?= num($r['saldo'], 1) ?></td>
         <td class="n"><?= num($r['consumo_medio']) ?></td>
         <td class="n"><?= $r['cobertura_meses'] !== null ? num($r['cobertura_meses'], 1) : '–' ?></td>

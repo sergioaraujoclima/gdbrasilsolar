@@ -50,7 +50,7 @@ painel_inicio($u['nome'], 'usinas');
     <?php foreach ([...$unidades, ...$benef] as $c): $s = $saldos[$c['id']] ?? null; ?>
       <tr>
         <td><a href="/painel/unidades.php?editar=<?= (int) $c['id'] ?>"><?= e(nome_uc($c)) ?></a><br><small><?= e(endereco_uc($c)) ?></small></td>
-        <td><span class="etiqueta etiqueta-<?= e($c['tipo']) ?>"><?= $c['tipo'] === 'geradora' ? 'Geradora' : 'Beneficiária' ?></span></td>
+        <td><?= etiqueta_papel($c['tipo']) ?></td>
         <td><?= e($c['distribuidora']) ?></td><td><?= e($c['classificacao']) ?></td>
         <td class="n"><?= $s ? num($s['saldo_creditos_kwh'], 1) : '–' ?></td>
       </tr>
@@ -72,7 +72,7 @@ painel_inicio($u['nome'], 'usinas');
       <tr>
         <td><a href="/painel/faturas.php?ver=<?= (int) $f['id'] ?>"><?= mes_br($f['referencia']) ?></a></td>
         <td><?= e(nome_uc($f)) ?></td>
-        <td><span class="etiqueta etiqueta-<?= e($f['tipo_uc']) ?>"><?= $f['tipo_uc'] === 'geradora' ? 'Geradora' : 'Beneficiária' ?></span></td>
+        <td><?= etiqueta_papel($f['tipo_uc']) ?></td>
         <td><?= data_br($f['vencimento']) ?></td>
         <td class="n"><?= brl($f['valor_total']) ?></td>
         <td class="n"><?= num($f['energia_injetada_kwh']) ?></td>
