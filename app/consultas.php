@@ -43,7 +43,9 @@ function opcoes_uc(array $unidades): array
 {
     $o = [];
     foreach ($unidades as $c) {
-        $o[$c['id']] = nome_uc($c);
+        // sem apelido, o endereço ajuda a reconhecer a unidade na lista
+        $o[$c['id']] = nome_uc($c) . (empty($c['apelido']) && !empty($c['endereco'])
+            ? ' - ' . mb_strimwidth($c['endereco'], 0, 45, '...') : '');
     }
     return $o;
 }
