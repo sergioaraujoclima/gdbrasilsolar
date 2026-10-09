@@ -1,0 +1,83 @@
+/* Painel do sistema */
+.painel { display: grid; grid-template-columns: 15.5rem minmax(0, 1fr); min-height: 100vh; background: #f4f8fb; }
+.lateral { background: var(--noite); color: #fff; padding: 1.5rem 1rem; display: flex; flex-direction: column; gap: 2rem; position: sticky; top: 0; height: 100vh; }
+.lateral .marca { padding: 0 0.5rem; }
+.lateral nav { display: grid; gap: 0.2rem; }
+.lateral nav a { color: #d5e3f0; text-decoration: none; padding: 0.6rem 0.75rem; border-radius: 8px; font-weight: 500; }
+.lateral nav a:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.lateral nav a[aria-current="page"] { background: var(--sol); color: var(--tinta); }
+.lateral-pe { margin-top: auto; padding: 0 0.5rem; font-size: 0.92rem; color: #c4d6e6; display: grid; gap: 0.3rem; }
+.link { background: none; border: 0; padding: 0; font: inherit; color: var(--sol); cursor: pointer; text-decoration: underline; }
+
+.conteudo { padding: 2rem clamp(1rem, 3vw, 2.5rem) 4rem; min-width: 0; }
+.cabecalho { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+.cabecalho h1 { font-size: 1.7rem; color: var(--noite); }
+.cabecalho p { color: var(--tinta-2); margin-top: 0.3rem; }
+.conteudo h2 { font-size: 1.2rem; color: var(--noite); margin: 2rem 0 0.9rem; }
+
+.bloco { background: #fff; border: 1px solid var(--linha); border-radius: 14px; padding: 1.4rem; }
+.bloco + .bloco { margin-top: 1.25rem; }
+
+/* Indicadores */
+.indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; }
+.indicador { background: #fff; border: 1px solid var(--linha); border-radius: 14px; padding: 1.1rem 1.25rem; }
+.indicador .rotulo { color: var(--tinta-2); font-size: 0.92rem; }
+.indicador .valor { font: 600 1.7rem/1.2 var(--titulo); color: var(--noite); margin-top: 0.3rem; font-variant-numeric: tabular-nums; }
+.indicador .valor small { font: 500 0.95rem var(--texto); color: var(--tinta-2); }
+.indicador .nota { font-size: 0.88rem; color: var(--tinta-2); margin-top: 0.3rem; }
+.indicador-credito { border-left: 6px solid var(--folha); }
+.indicador-credito .valor { color: var(--folha); }
+
+/* Usinas no topo do dashboard */
+.usinas-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 1rem; margin-top: 1rem; }
+.usina-cartao { background: #fff; border: 1px solid var(--linha); border-radius: 14px; padding: 1.25rem; border-top: 6px solid var(--cor, var(--noite)); }
+.usina-cartao h3 { font-size: 1.1rem; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.usina-cartao h3 a { color: var(--noite); }
+.usina-cartao dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin: 1rem 0 0; }
+.usina-cartao dt { font-size: 0.85rem; color: var(--tinta-2); }
+.usina-cartao dd { margin: 0; font: 600 1.1rem var(--titulo); font-variant-numeric: tabular-nums; }
+.usina-cartao .nota { font-size: 0.88rem; color: var(--tinta-2); margin-top: 0.9rem; }
+
+.etiqueta { display: inline-block; font: 600 0.78rem var(--texto); padding: 0.15rem 0.6rem; border-radius: 99px; background: #e7f5ee; color: #14633f; }
+.etiqueta-parada, .etiqueta-pendente, .etiqueta-aberta { background: #fff0cc; color: #7a4b00; }
+.etiqueta-bloqueado, .etiqueta-inativa { background: #fbe9e7; color: #8c1d18; }
+.etiqueta-beneficiaria { background: var(--ceu); color: var(--noite); }
+
+/* Seletor de visão do gráfico */
+.visoes { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: end; margin-bottom: 1rem; }
+.abas { display: inline-flex; border: 1px solid var(--noite); border-radius: 9px; overflow: hidden; }
+.abas a { padding: 0.45rem 1rem; text-decoration: none; color: var(--noite); font-weight: 600; }
+.abas a[aria-current="true"] { background: var(--noite); color: #fff; }
+.visoes .campo { min-width: 9rem; }
+.grafico { position: relative; height: 22rem; }
+
+/* Tabelas */
+.rolagem { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--linha); white-space: nowrap; }
+th { font-size: 0.88rem; color: var(--tinta-2); font-weight: 600; background: #f4f8fb; }
+td.n, th.n { text-align: right; }
+tbody tr:hover { background: #f8fbfd; }
+tfoot td { font-weight: 600; border-top: 2px solid var(--noite); border-bottom: 0; }
+td .acoes { display: flex; gap: 0.4rem; justify-content: flex-end; }
+.vazio { color: var(--tinta-2); padding: 1.5rem 0; }
+
+/* Formulários */
+.grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem; }
+.grade .largo { grid-column: 1 / -1; }
+.form-acoes { display: flex; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap; }
+fieldset { border: 0; padding: 0; margin: 1.75rem 0 0; }
+legend { font: 600 1.05rem var(--titulo); color: var(--noite); padding: 0; margin-bottom: 0.9rem; }
+.itens input { width: 100%; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid #9fb2c3; border-radius: 6px; }
+.itens td { padding: 0.25rem 0.3rem; border: 0; }
+.dados { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 1rem 1.5rem; margin: 0; }
+.dados dt { font-size: 0.85rem; color: var(--tinta-2); }
+.dados dd { margin: 0; font-weight: 500; }
+
+@media (max-width: 56rem) {
+  .painel { grid-template-columns: 1fr; }
+  .lateral { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; padding: 0.9rem 1rem; }
+  .lateral nav { display: flex; flex-wrap: wrap; order: 3; width: 100%; }
+  .lateral-pe { margin: 0 0 0 auto; display: flex; gap: 0.75rem; }
+  .usina-cartao dl { grid-template-columns: 1fr 1fr; }
+}

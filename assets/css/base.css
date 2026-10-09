@@ -1,0 +1,72 @@
+/* Identidade comum ao site e ao painel */
+:root {
+  --noite: #0f2a44;   /* azul da célula fotovoltaica */
+  --noite-2: #1b4266;
+  --ceu: #eaf3fa;
+  --sol: #ffb703;
+  --sol-forte: #f48c06;
+  --folha: #1e8f5e;   /* créditos de energia */
+  --tinta: #12202e;
+  --tinta-2: #4a5b6b;
+  --papel: #ffffff;
+  --linha: #d3dfe9;
+  --alerta: #b3261e;
+  --titulo: "Sora", "Segoe UI", system-ui, sans-serif;
+  --texto: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --raio: 10px;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--texto);
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--tinta);
+  background: var(--papel);
+}
+h1, h2, h3 { font-family: var(--titulo); line-height: 1.15; margin: 0; letter-spacing: -0.01em; }
+p { margin: 0; }
+a { color: var(--noite-2); }
+:focus-visible { outline: 3px solid var(--sol-forte); outline-offset: 2px; }
+
+.botao {
+  display: inline-block;
+  font: 600 1rem var(--texto);
+  padding: 0.7rem 1.25rem;
+  border-radius: var(--raio);
+  border: 2px solid var(--noite);
+  background: var(--noite);
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+}
+.botao:hover { background: var(--noite-2); border-color: var(--noite-2); }
+.botao-sol { background: var(--sol); border-color: var(--sol); color: var(--tinta); }
+.botao-sol:hover { background: var(--sol-forte); border-color: var(--sol-forte); }
+.botao-claro { background: transparent; color: var(--noite); }
+.botao-claro:hover { background: var(--ceu); border-color: var(--noite); }
+.botao-perigo { background: transparent; border-color: var(--alerta); color: var(--alerta); }
+.botao-perigo:hover { background: var(--alerta); color: #fff; }
+.botao-p { padding: 0.35rem 0.75rem; font-size: 0.9rem; }
+
+.marca {
+  display: inline-flex; align-items: center; gap: 0.6rem;
+  font: 600 1.1rem var(--titulo); color: inherit; text-decoration: none;
+}
+.marca-sol {
+  width: 1.15rem; height: 1.15rem; border-radius: 50%;
+  background: var(--sol); box-shadow: 0 0 0 4px rgba(255, 183, 3, 0.28);
+}
+
+.campo { display: block; }
+.campo > span { display: block; font-weight: 500; font-size: 0.92rem; margin-bottom: 0.3rem; }
+.campo input, .campo select, .campo textarea {
+  width: 100%; font: inherit; color: inherit;
+  padding: 0.6rem 0.7rem; border: 1px solid #9fb2c3; border-radius: 8px; background: #fff;
+}
+.campo textarea { min-height: 5rem; resize: vertical; }
+
+.aviso { padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 5px solid var(--folha); background: #e7f5ee; }
+.aviso-erro { border-left-color: var(--alerta); background: #fbe9e7; }
+.aviso-info { border-left-color: var(--sol-forte); background: #fff4d6; }

@@ -53,7 +53,7 @@ class SincronizadorGrowatt
                 (:empresa, :integracao, :nome, 'growatt', :id_externo, :pico, :cidade, :pais,
                  :lat, :lon, :instalacao, :status, :total, :bruto, UTC_TIMESTAMP())
              ON DUPLICATE KEY UPDATE
-                nome = VALUES(nome), potencia_pico_kwp = VALUES(potencia_pico_kwp), cidade = VALUES(cidade),
+                potencia_pico_kwp = VALUES(potencia_pico_kwp), cidade = VALUES(cidade),
                 pais = VALUES(pais), latitude = VALUES(latitude), longitude = VALUES(longitude),
                 data_instalacao = VALUES(data_instalacao), status_externo = VALUES(status_externo),
                 energia_total_kwh = VALUES(energia_total_kwh), dados_brutos = VALUES(dados_brutos),

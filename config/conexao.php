@@ -23,7 +23,12 @@ function db(): PDO
         $cfg['db_name']
     );
 
-    $pdo = new PDO($dsn, $cfg['db_user'], $cfg['db_pass'], [
+    // db_dsn só existe em ambiente de teste local.
+    if (!empty($cfg['db_dsn'])) {
+        $dsn = $cfg['db_dsn'];
+    }
+
+    $pdo = new PDO($dsn, $cfg['db_user'] ?? null, $cfg['db_pass'] ?? null, [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES   => false,

@@ -1,0 +1,96 @@
+/* Página inicial e telas de acesso */
+.site { background: linear-gradient(180deg, var(--ceu) 0, #fff 46rem); }
+.faixa { width: min(72rem, 100% - 2.5rem); margin-inline: auto; }
+
+.topo { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 0; }
+.topo nav { display: flex; gap: 0.6rem; align-items: center; }
+
+/* Abertura: a curva de geração de um dia */
+.abertura { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 2.5rem; align-items: center; padding: 3.5rem 0 4.5rem; }
+.abertura h1 { font-size: clamp(2.2rem, 4.6vw, 3.6rem); font-weight: 700; color: var(--noite); }
+.abertura .resumo { font-size: 1.2rem; color: var(--tinta-2); margin: 1.4rem 0 2rem; max-width: 32rem; }
+.abertura .acoes { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+.curva { width: 100%; height: auto; display: block; }
+.curva .eixo { stroke: #a9bccd; stroke-width: 1; }
+.curva .hora { font: 500 13px var(--texto); fill: var(--tinta-2); text-anchor: middle; }
+.curva .linha { fill: none; stroke: var(--noite); stroke-width: 3; stroke-linecap: round; }
+.curva .area { fill: url(#luz); }
+.curva .cortina { transform-origin: 40px 0; animation: abrir 2.8s cubic-bezier(.45, .05, .3, 1) both; }
+.curva .astro {
+  offset-path: path("M40,260 C160,260 200,60 300,60 C400,60 440,260 560,260");
+  offset-distance: 50%;
+  animation: nascer 2.8s cubic-bezier(.45, .05, .3, 1) both;
+}
+.curva .astro circle:first-child { fill: rgba(255, 183, 3, 0.25); }
+.curva .astro circle:last-child { fill: var(--sol); stroke: var(--sol-forte); stroke-width: 2; }
+.curva .legenda { font: 600 14px var(--texto); fill: var(--noite); }
+@keyframes abrir { from { transform: scaleX(0); } to { transform: scaleX(0.5); } }
+@keyframes nascer { from { offset-distance: 0%; } to { offset-distance: 50%; } }
+.curva .cortina { transform: scaleX(0.5); }
+@media (prefers-reduced-motion: reduce) {
+  .curva .cortina, .curva .astro { animation: none; }
+}
+
+/* O que você acompanha */
+.acompanha { padding: 4rem 0; }
+.acompanha h2, .caminho h2, .objetivo h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); }
+.acompanha .introducao { color: var(--tinta-2); max-width: 40rem; margin-top: 0.8rem; font-size: 1.1rem; }
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 2.5rem; border-top: 2px solid var(--noite); }
+.trio > div { padding: 1.75rem 1.75rem 0.5rem 0; }
+.trio > div + div { padding-left: 1.75rem; border-left: 1px solid var(--linha); }
+.trio svg { width: 2.4rem; height: 2.4rem; margin-bottom: 1rem; }
+.trio h3 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+.trio p { color: var(--tinta-2); }
+
+/* O caminho do crédito: é uma sequência, por isso é numerada */
+.caminho { background: var(--noite); color: #fff; padding: 4.5rem 0; }
+.caminho .introducao { color: #c4d6e6; max-width: 40rem; margin-top: 0.8rem; font-size: 1.1rem; }
+.passos { list-style: none; margin: 3rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; counter-reset: passo; position: relative; }
+.passos::before { content: ""; position: absolute; left: 1.4rem; right: 22%; top: 1.4rem; height: 2px; background: linear-gradient(90deg, var(--sol), var(--folha)); }
+.passos li { counter-increment: passo; position: relative; }
+.passos li::before {
+  content: counter(passo); display: grid; place-items: center;
+  width: 2.8rem; height: 2.8rem; border-radius: 50%;
+  background: var(--noite); border: 2px solid var(--sol); color: var(--sol);
+  font: 700 1.1rem var(--titulo); margin-bottom: 1.1rem; position: relative;
+}
+.passos li:last-child::before { border-color: #5fd3a0; color: #5fd3a0; }
+.passos h3 { font-size: 1.1rem; margin-bottom: 0.4rem; }
+.passos p { color: #c4d6e6; font-size: 0.98rem; }
+
+/* Objetivo */
+.objetivo { padding: 5rem 0; display: grid; grid-template-columns: 1fr 1.6fr; gap: 3rem; align-items: start; }
+.objetivo blockquote { margin: 0; font: 500 clamp(1.3rem, 2.4vw, 1.75rem)/1.4 var(--titulo); color: var(--noite); border-left: 6px solid var(--sol); padding-left: 1.5rem; }
+.objetivo ul { margin: 1.75rem 0 0; padding: 0 0 0 1.5rem; list-style: none; display: grid; gap: 0.7rem; color: var(--tinta-2); }
+.objetivo li { padding-left: 1.6rem; position: relative; }
+.objetivo li::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 0.7rem; height: 0.7rem; border-radius: 50%; background: var(--folha); }
+
+.chamada { background: var(--ceu); border-radius: 18px; padding: 2.5rem; display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; justify-content: space-between; margin-bottom: 4rem; }
+.chamada h2 { font-size: 1.6rem; color: var(--noite); }
+.chamada p { color: var(--tinta-2); margin-top: 0.4rem; }
+
+.rodape { border-top: 1px solid var(--linha); padding: 1.5rem 0 2.5rem; color: var(--tinta-2); font-size: 0.92rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+
+/* Telas de acesso */
+.acesso { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.acesso-lado { background: var(--noite); color: #fff; padding: 2.5rem; display: flex; flex-direction: column; justify-content: space-between; }
+.acesso-lado h1 { font-size: clamp(1.6rem, 3vw, 2.4rem); max-width: 22rem; }
+.acesso-lado p { color: #c4d6e6; margin-top: 1rem; max-width: 24rem; }
+.acesso-form { padding: 2.5rem; display: grid; align-content: center; justify-items: center; background: #fff; }
+.acesso-form form { width: min(24rem, 100%); display: grid; gap: 1rem; }
+.acesso-form h2 { font-size: 1.6rem; color: var(--noite); }
+.acesso-form .troca { color: var(--tinta-2); font-size: 0.95rem; }
+
+@media (max-width: 52rem) {
+  .abertura, .objetivo, .acesso { grid-template-columns: 1fr; }
+  .abertura { padding-top: 2rem; }
+  .trio { grid-template-columns: 1fr; }
+  .trio > div + div { padding-left: 0; border-left: 0; border-top: 1px solid var(--linha); }
+  .passos { grid-template-columns: 1fr; }
+  .passos::before { left: 1.4rem; right: auto; top: 1.4rem; bottom: 1.4rem; width: 2px; height: auto; }
+  .passos li { padding-left: 4rem; }
+  .passos li::before { position: absolute; left: 0; top: 0; }
+  .acesso-lado { padding: 1.5rem; gap: 2rem; }
+  .topo nav .botao-claro { display: none; }
+}

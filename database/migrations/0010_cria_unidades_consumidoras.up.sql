@@ -1,0 +1,31 @@
+-- Unidades consumidoras (UC) na distribuidora. A UC geradora é onde a usina
+-- injeta energia; as beneficiárias recebem créditos de uma geradora.
+CREATE TABLE unidades_consumidoras (
+    id                    INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    empresa_id            INT UNSIGNED  NOT NULL,
+    usina_id              INT UNSIGNED  NULL COMMENT 'usina instalada nesta UC (geradora)',
+    uc_geradora_id        INT UNSIGNED  NULL COMMENT 'UC que envia créditos (beneficiária)',
+    numero_uc             VARCHAR(30)   NOT NULL,
+    distribuidora         VARCHAR(100)  NOT NULL,
+    tipo                  VARCHAR(20)   NOT NULL DEFAULT 'geradora' COMMENT 'geradora | beneficiaria',
+    titular_nome          VARCHAR(150)  NULL,
+    titular_documento     VARCHAR(20)   NULL,
+    classificacao         VARCHAR(100)  NULL COMMENT 'ex.: B2 Rural, A4 Horo-sazonal Verde',
+    tipo_fornecimento     VARCHAR(60)   NULL,
+    regra_gd              VARCHAR(20)   NULL COMMENT 'GD I | GD II | GD III',
+    endereco              VARCHAR(255)  NULL,
+    cidade                VARCHAR(100)  NULL,
+    uf                    CHAR(2)       NULL,
+    cep                   VARCHAR(10)   NULL,
+    medidor               VARCHAR(30)   NULL,
+    demanda_contratada_kw DECIMAL(10,2) NULL,
+    ativo                 TINYINT(1)    NOT NULL DEFAULT 1,
+    criado_em             DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_uc_numero (distribuidora, numero_uc),
+    KEY ix_uc_empresa (empresa_id),
+    CONSTRAINT fk_uc_empresa  FOREIGN KEY (empresa_id)     REFERENCES empresas (id),
+    CONSTRAINT fk_uc_usina    FOREIGN KEY (usina_id)       REFERENCES usinas (id) ON DELETE SET NULL,
+    CONSTRAINT fk_uc_geradora FOREIGN KEY (uc_geradora_id) REFERENCES unidades_consumidoras (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

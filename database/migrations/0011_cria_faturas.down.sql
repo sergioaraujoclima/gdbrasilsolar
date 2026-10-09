@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS fatura_itens;
+DROP TABLE IF EXISTS faturas;
