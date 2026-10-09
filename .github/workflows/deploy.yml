@@ -23,6 +23,8 @@ jobs:
         DB_USER: ${{ secrets.DB_USER }}
         DB_PASS: ${{ secrets.DB_PASS }}
         APP_TOKEN: ${{ secrets.APP_TOKEN }}
+        GROWATT_TOKEN: ${{ secrets.GROWATT_TOKEN }}
+        GROWATT_URL: ${{ secrets.GROWATT_URL }}
       run: |
         php -r '
           $cfg = [
@@ -31,6 +33,8 @@ jobs:
             "db_user"   => (string) getenv("DB_USER"),
             "db_pass"   => (string) getenv("DB_PASS"),
             "app_token" => (string) getenv("APP_TOKEN"),
+            "growatt_token" => (string) getenv("GROWATT_TOKEN"),
+            "growatt_url"   => (string) getenv("GROWATT_URL"),
           ];
           file_put_contents("config/config.php", "<?php\nreturn " . var_export($cfg, true) . ";\n");
         '
@@ -65,5 +69,27 @@ jobs:
           echo "::notice::Banco OK: $corpo"
         else
           echo "::error::Teste do banco falhou (HTTP $http): $corpo"
+          exit 1
+        fi
+
+    # Só roda quando a mensagem do commit contém [growatt], para respeitar
+    # o limite de chamadas da API.
+    - name: ☀️ Testando conexão com a API da Growatt
+      if: contains(github.event.head_commit.message, '[growatt]')
+      env:
+        APP_TOKEN: ${{ secrets.APP_TOKEN }}
+        GROWATT_TOKEN: ${{ secrets.GROWATT_TOKEN }}
+      run: |
+        if [ -z "$GROWATT_TOKEN" ]; then
+          echo "::error::Secret ausente: GROWATT_TOKEN"
+          exit 1
+        fi
+        http=$(curl -sS -o growatt.json -w '%{http_code}' \
+          -H "X-Deploy-Token: $APP_TOKEN" "$SITE_URL/ops/growatt-test.php")
+        corpo=$(head -c 300 growatt.json | tr -d '\n')
+        if [ "$http" = "200" ] && grep -q '"ok":true' growatt.json; then
+          echo "::notice::Growatt OK: $corpo"
+        else
+          echo "::error::Teste da Growatt falhou (HTTP $http): $corpo"
           exit 1
         fi
