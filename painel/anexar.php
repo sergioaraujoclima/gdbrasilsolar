@@ -122,7 +122,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'tipo'           => $tipo,
             'usina_id'       => ($tipo === 'geradora' && $usina && buscar_usina($usina)) ? $usina : null,
             'uc_geradora_id' => ($tipo === 'beneficiaria' && $gerad && buscar_unidade($gerad)) ? $gerad : null,
-            'apelido'        => texto($_POST['apelido'] ?? ''),
             'criado_em'      => agora(),
             'atualizado_em'  => agora(),
         ];
@@ -154,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ]);
     unset($_SESSION['anexos'][$token]);
 
-    avisar(($novaUc ? 'Unidade ' . $u['numero_uc'] . ' cadastrada; o papel e o vínculo podem ser alterados em "Editar a unidade e o vínculo". ' : '') . 'Fatura de ' . mes_br($referencia)
+    avisar(($novaUc ? 'Unidade ' . $u['numero_uc'] . ' cadastrada; defina o nome/apelido dela em "Editar a unidade e o vínculo". ' : '') . 'Fatura de ' . mes_br($referencia)
         . ($pdfAntigo !== false ? ' substituída' : ' gravada') . ' a partir do PDF. Confira os campos abaixo.');
     redirecionar('/painel/faturas.php?ver=' . $id);
 }
@@ -221,7 +220,6 @@ if (!$lido): ?>
     <?php endif; ?>
     <?php if (!$unidade): ?>
     <fieldset><legend><?= $u['numero_uc'] ? 'Complete o cadastro da nova unidade' : 'Preencha somente se a unidade for nova' ?></legend><div class="grade">
-      <?= campo('apelido', 'Nome ou apelido da unidade', '', 'text', 'maxlength="80" placeholder="Ex.: Pivô 13B"') ?>
       <?php if (eh_admin()): ?><?= selecao('empresa_id', 'Empresa', array_column(empresas_disponiveis(), 'nome', 'id'), 1) ?><?php endif; ?>
       <?= selecao('tipo', 'Papel na compensação', ['geradora' => 'Geradora (tem usina)', 'beneficiaria' => 'Beneficiária (recebe créditos)'], $u['tipo'], $u['tipo'] === '') ?>
       <?= selecao('usina_id', 'Usina instalada (se geradora)', array_column(usinas_visiveis(false), 'nome', 'id'), '', true) ?>
