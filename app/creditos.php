@@ -79,7 +79,7 @@ function rateios_da_geradora(int $geradoraId): array
     $s->execute([$geradoraId]);
     $rateios = $s->fetchAll();
     $i = db()->prepare(
-        'SELECT i.uc_destino_id, i.percentual, c.numero_uc FROM rateio_itens i
+        'SELECT i.uc_destino_id, i.percentual, c.numero_uc, c.apelido FROM rateio_itens i
          JOIN unidades_consumidoras c ON c.id = i.uc_destino_id WHERE i.rateio_id = ? ORDER BY i.percentual DESC'
     );
     foreach ($rateios as &$r) {

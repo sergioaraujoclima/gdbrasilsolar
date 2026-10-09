@@ -48,20 +48,21 @@ painel_inicio('Créditos', 'creditos');
 
     $alertas = [];
     foreach ($destinos as $id => $r) {
-        $uc = $unidades[$id]['numero_uc'];
+        $uc = nome_uc($unidades[$id]);
         if ($r['cobertura_meses'] !== null && $r['cobertura_meses'] > MESES_VALIDADE_CREDITO) {
-            $alertas[] = "A UC $uc tem saldo para " . num($r['cobertura_meses']) . ' meses do próprio consumo. Créditos expiram em '
+            $alertas[] = "$uc tem saldo para " . num($r['cobertura_meses']) . ' meses do próprio consumo. Créditos expiram em '
                 . MESES_VALIDADE_CREDITO . ' meses: parte desse saldo tende a vencer sem uso.';
         }
         if ($id !== $gid && $r['ciclos'] && !$r['saldo'] && empty($pctAtual[$id])) {
-            $alertas[] = "A UC $uc está sem saldo de créditos e fora do rateio vigente.";
+            $alertas[] = "$uc está sem saldo de créditos e fora do rateio vigente.";
         }
     }
     if (!$vigente) {
         $alertas[] = 'Nenhum rateio cadastrado para esta geradora. Sem rateio, toda a energia injetada fica nela mesma.';
     }
     ?>
-<h2>UC geradora <?= e($g['numero_uc']) ?><?= $g['usina'] ? ', usina ' . e($g['usina']) : '' ?></h2>
+<h2><?= e(nome_uc($g)) ?>, geradora<?= $g['usina'] ? ' da usina ' . e($g['usina']) : '' ?></h2>
+<p class="endereco"><?= e(endereco_uc($g)) ?></p>
 
 <?php foreach ($alertas as $a): ?><p class="aviso aviso-info"><?= e($a) ?></p><?php endforeach; ?>
 
@@ -78,7 +79,7 @@ painel_inicio('Créditos', 'creditos');
     <?php else: ?>Unidades com menos de <?= MESES_COBERTURA_ALVO ?> meses de saldo<?php endif; ?></div></div>
   <div class="indicador"><div class="rotulo">Rateio vigente</div>
     <div class="valor" style="font-size:1.1rem"><?php if ($vigente): foreach ($vigente['itens'] as $i): ?>
-      <?= num($i['percentual'], $i['percentual'] == round($i['percentual']) ? 0 : 2) ?>% para <?= $i['uc_destino_id'] == $gid ? 'a própria UC' : e($i['numero_uc']) ?><br>
+      <?= num($i['percentual'], $i['percentual'] == round($i['percentual']) ? 0 : 2) ?>% para <?= $i['uc_destino_id'] == $gid ? 'a própria unidade' : e(nome_uc($i)) ?><br>
     <?php endforeach; else: ?>Não cadastrado<?php endif; ?></div>
     <div class="nota"><?= $vigente ? 'Desde ' . mes_br($vigente['vigencia_inicio']) . '. ' : '' ?><a href="/painel/rateios.php?g=<?= $gid ?>&amp;novo=1">Definir novo rateio</a></div></div>
 </div>
@@ -90,7 +91,7 @@ painel_inicio('Créditos', 'creditos');
     <tbody>
     <?php foreach ($destinos as $id => $r): $p = (float) ($pctAtual[$id] ?? 0); ?>
       <tr>
-        <td><a href="/painel/faturas.php?unidade=<?= $id ?>"><?= e($unidades[$id]['numero_uc']) ?></a></td>
+        <td><a href="/painel/faturas.php?unidade=<?= $id ?>"><?= e(nome_uc($unidades[$id])) ?></a></td>
         <td><span class="etiqueta etiqueta-<?= e($unidades[$id]['tipo']) ?>"><?= $id === $gid ? 'Geradora' : 'Beneficiária' ?></span></td>
         <td class="n"><?= num($r['saldo'], 1) ?></td>
         <td><span class="etiqueta etiqueta-<?= $r['tendencia'] ?>"><?= rotulo_tendencia($r['tendencia']) ?></span></td>
@@ -135,7 +136,7 @@ if ($soltas): ?>
   <table>
     <thead><tr><th>Unidade</th><th class="n">Saldo (kWh)</th><th>Tendência</th><th class="n">Consumo médio (kWh)</th><th></th></tr></thead>
     <tbody><?php foreach ($soltas as $id => $c): $r = $resumos[$id]; ?>
-      <tr><td><?= e($c['numero_uc']) ?></td><td class="n"><?= num($r['saldo'], 1) ?></td>
+      <tr><td><?= e(nome_uc($c)) ?><br><small><?= e(endereco_uc($c)) ?></small></td><td class="n"><?= num($r['saldo'], 1) ?></td>
         <td><span class="etiqueta etiqueta-<?= $r['tendencia'] ?>"><?= rotulo_tendencia($r['tendencia']) ?></span></td>
         <td class="n"><?= num($r['consumo_medio']) ?></td>
         <td><a class="botao botao-claro botao-p" href="/painel/unidades.php?editar=<?= $id ?>">Ligar a uma geradora</a></td></tr>

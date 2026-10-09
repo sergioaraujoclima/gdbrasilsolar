@@ -33,7 +33,7 @@ painel_inicio($u['nome'], 'usinas');
   <div class="indicador"><div class="rotulo">Gerado desde o início</div><div class="valor"><?= num($t['total'] ?? 0) ?> <small>kWh</small></div>
     <div class="nota">Última geração em <?= data_br($t['ultima_geracao'] ?? null) ?></div></div>
   <?php foreach ($unidades as $c): $s = $saldos[$c['id']] ?? null; ?>
-  <div class="indicador indicador-credito"><div class="rotulo">Saldo de créditos da UC <?= e($c['numero_uc']) ?></div>
+  <div class="indicador indicador-credito"><div class="rotulo">Saldo de créditos: <?= e(nome_uc($c)) ?></div>
     <div class="valor"><?= $s ? num($s['saldo_creditos_kwh']) . ' <small>kWh</small>' : '–' ?></div>
     <div class="nota"><?= $s ? 'Fatura de ' . mes_br($s['referencia']) : 'Sem fatura com saldo informado' ?></div></div>
   <?php endforeach; ?>
@@ -45,13 +45,13 @@ painel_inicio($u['nome'], 'usinas');
   <p class="vazio">Nenhuma unidade consumidora ligada a esta usina. <a href="/painel/unidades.php?nova=1">Cadastrar unidade</a>.</p>
 <?php else: ?>
   <table>
-    <thead><tr><th>Número da UC</th><th>Papel</th><th>Distribuidora</th><th>Classificação</th><th>Cidade</th><th class="n">Saldo de créditos (kWh)</th></tr></thead>
+    <thead><tr><th>Unidade e endereço</th><th>Papel</th><th>Distribuidora</th><th>Classificação</th><th class="n">Saldo de créditos (kWh)</th></tr></thead>
     <tbody>
     <?php foreach ([...$unidades, ...$benef] as $c): $s = $saldos[$c['id']] ?? null; ?>
       <tr>
-        <td><a href="/painel/unidades.php?editar=<?= (int) $c['id'] ?>"><?= e($c['numero_uc']) ?></a></td>
+        <td><a href="/painel/unidades.php?editar=<?= (int) $c['id'] ?>"><?= e(nome_uc($c)) ?></a><br><small><?= e(endereco_uc($c)) ?></small></td>
         <td><span class="etiqueta etiqueta-<?= e($c['tipo']) ?>"><?= $c['tipo'] === 'geradora' ? 'Geradora' : 'Beneficiária' ?></span></td>
-        <td><?= e($c['distribuidora']) ?></td><td><?= e($c['classificacao']) ?></td><td><?= e($c['cidade']) ?></td>
+        <td><?= e($c['distribuidora']) ?></td><td><?= e($c['classificacao']) ?></td>
         <td class="n"><?= $s ? num($s['saldo_creditos_kwh'], 1) : '–' ?></td>
       </tr>
     <?php endforeach; ?>
@@ -71,7 +71,7 @@ painel_inicio($u['nome'], 'usinas');
     <?php foreach ($faturas as $f): ?>
       <tr>
         <td><a href="/painel/faturas.php?ver=<?= (int) $f['id'] ?>"><?= mes_br($f['referencia']) ?></a></td>
-        <td><?= e($f['numero_uc']) ?></td>
+        <td><?= e(nome_uc($f)) ?></td>
         <td><span class="etiqueta etiqueta-<?= e($f['tipo_uc']) ?>"><?= $f['tipo_uc'] === 'geradora' ? 'Geradora' : 'Beneficiária' ?></span></td>
         <td><?= data_br($f['vencimento']) ?></td>
         <td class="n"><?= brl($f['valor_total']) ?></td>

@@ -102,8 +102,8 @@ if (!$geradoras): ?>
     }
     $sugestao = sugestao_rateio($resumos);
     ?>
-<div class="cabecalho"><div><h1><?= $editar ? 'Editar rateio' : 'Novo rateio' ?> da UC <?= e($g['numero_uc']) ?></h1>
-  <p>Informe quanto da energia injetada vai para cada unidade. Os percentuais precisam somar 100%.</p></div></div>
+<div class="cabecalho"><div><h1><?= $editar ? 'Editar rateio' : 'Novo rateio' ?> : <?= e(nome_uc($g)) ?></h1>
+  <p><?= e(endereco_uc($g)) ?>. Informe quanto da energia injetada vai para cada unidade. Os percentuais precisam somar 100%.</p></div></div>
 <form method="post" class="bloco">
   <?= csrf_campo() ?><input type="hidden" name="id" value="<?= (int) ($editar['id'] ?? 0) ?>"><input type="hidden" name="uc_geradora_id" value="<?= $gid ?>">
   <div class="grade">
@@ -115,7 +115,7 @@ if (!$geradoras): ?>
     <tbody>
     <?php foreach ($candidatas as $id => $c): $r = $resumos[$id]; $p = $pct[$id] ?? null; ?>
       <tr>
-        <td><?= e($c['numero_uc']) ?><?= $id === $gid ? ' (fica na própria geradora)' : '' ?></td>
+        <td><?= e(nome_uc($c)) ?><?= $id === $gid ? ' (fica na própria geradora)' : '' ?><br><small><?= e(endereco_uc($c)) ?></small></td>
         <td><span class="etiqueta etiqueta-<?= e($c['tipo']) ?>"><?= $c['tipo'] === 'geradora' ? 'Geradora' : 'Beneficiária' ?></span></td>
         <td class="n"><?= num($r['saldo'], 1) ?></td>
         <td class="n"><?= num($r['consumo_medio']) ?></td>
@@ -153,7 +153,8 @@ if (!$geradoras): ?>
   <a class="botao botao-claro" href="/painel/creditos.php">Ver créditos</a>
 </div>
 <?php foreach ($geradoras as $id => $c): $rateios = rateios_da_geradora($id); $vigente = rateio_vigente($rateios); ?>
-<h2>UC geradora <?= e($c['numero_uc']) ?><?= $c['usina'] ? ', usina ' . e($c['usina']) : '' ?></h2>
+<h2><?= e(nome_uc($c)) ?>, geradora<?= $c['usina'] ? ' da usina ' . e($c['usina']) : '' ?></h2>
+<p class="endereco"><?= e(endereco_uc($c)) ?></p>
 <div class="bloco rolagem">
   <?php if (!$rateios): ?>
     <p class="vazio">Nenhum rateio cadastrado: toda a energia injetada fica na própria unidade.</p>
@@ -167,7 +168,7 @@ if (!$geradoras): ?>
         <td><?php if ($vigente && $r['id'] == $vigente['id']): ?><span class="etiqueta">Vigente</span>
             <?php elseif ($r['vigencia_inicio'] > substr(hoje_local(), 0, 7) . '-01'): ?><span class="etiqueta etiqueta-pendente">Futuro</span>
             <?php else: ?><span class="etiqueta etiqueta-inativa">Encerrado</span><?php endif; ?></td>
-        <td><?php foreach ($r['itens'] as $i): ?><?= num($i['percentual'], $i['percentual'] == round($i['percentual']) ? 0 : 2) ?>% para <?= $i['uc_destino_id'] == $id ? 'a própria UC' : e($i['numero_uc']) ?><br><?php endforeach; ?></td>
+        <td><?php foreach ($r['itens'] as $i): ?><?= num($i['percentual'], $i['percentual'] == round($i['percentual']) ? 0 : 2) ?>% para <?= $i['uc_destino_id'] == $id ? 'a própria unidade' : e(nome_uc($i)) ?><br><?php endforeach; ?></td>
         <td><?= e($r['observacoes']) ?></td>
         <td><div class="acoes"><a class="botao botao-claro botao-p" href="/painel/rateios.php?g=<?= $id ?>&amp;editar=<?= (int) $r['id'] ?>">Editar</a></div></td>
       </tr>

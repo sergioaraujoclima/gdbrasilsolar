@@ -24,11 +24,35 @@ function buscar_usina(int $id): ?array
     return $s->fetch() ?: null;
 }
 
+/** Nome de exibição da unidade: o apelido, quando existe, seguido do número. */
+function nome_uc(array $c): string
+{
+    $numero = (string) ($c['numero_uc'] ?? '');
+    return !empty($c['apelido']) ? $c['apelido'] . ' (UC ' . $numero . ')' : 'UC ' . $numero;
+}
+
+/** Endereço da unidade em uma linha, para conferência. */
+function endereco_uc(array $c): string
+{
+    $partes = array_filter([$c['endereco'] ?? null, trim(($c['cidade'] ?? '') . ' ' . ($c['uf'] ?? ''))]);
+    return $partes ? implode(', ', $partes) : 'Endereço não informado';
+}
+
+/** Opções para campos de seleção de unidade: id => nome de exibição. */
+function opcoes_uc(array $unidades): array
+{
+    $o = [];
+    foreach ($unidades as $c) {
+        $o[$c['id']] = nome_uc($c);
+    }
+    return $o;
+}
+
 function unidades_visiveis(): array
 {
     $params = [];
     $s = db()->prepare(
-        'SELECT c.*, e.nome AS empresa, u.nome AS usina, g.numero_uc AS uc_geradora
+        'SELECT c.*, e.nome AS empresa, u.nome AS usina, g.numero_uc AS uc_geradora, g.apelido AS apelido_geradora
          FROM unidades_consumidoras c
          JOIN empresas e ON e.id = c.empresa_id
          LEFT JOIN usinas u ON u.id = c.usina_id
@@ -95,7 +119,7 @@ function serie_geracao(string $visao, string $inicio, string $fim, ?int $usinaId
 function faturas_visiveis(?int $unidadeId = null, ?int $usinaId = null): array
 {
     $params = [];
-    $sql = 'SELECT f.*, c.numero_uc, c.tipo AS tipo_uc, c.distribuidora, c.usina_id, c.uc_geradora_id, e.nome AS empresa
+    $sql = 'SELECT f.*, c.numero_uc, c.apelido, c.endereco, c.cidade, c.uf, c.tipo AS tipo_uc, c.distribuidora, c.usina_id, c.uc_geradora_id, e.nome AS empresa
             FROM faturas f
             JOIN unidades_consumidoras c ON c.id = f.unidade_id
             JOIN empresas e ON e.id = c.empresa_id

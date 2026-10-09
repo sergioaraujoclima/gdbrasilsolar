@@ -81,7 +81,12 @@ elseif ($form):
     $dec = fn (string $c, string $rotulo, int $casas = 2) => campo($c, $rotulo, $n($c, $casas), 'text', 'inputmode="decimal"');
     ?>
 <div class="cabecalho"><div><h1><?= $ver ? 'Fatura de ' . mes_br($ver['referencia']) : 'Nova fatura' ?></h1>
-  <?php if ($ver): ?><p>UC <?= e($ver['numero_uc']) ?>, <?= e($ver['distribuidora']) ?>.</p><?php endif; ?></div>
+  <?php if ($ver): $ucDaFatura = array_column($unidades, null, 'id')[$ver['unidade_id']] ?? $ver; ?>
+    <p><strong><?= e(nome_uc($ver)) ?></strong>, <?= e($ver['distribuidora']) ?>.<br><?= e(endereco_uc($ver)) ?><br>
+      <?php if ($ver['tipo_uc'] === 'geradora'): ?>Geradora<?= !empty($ucDaFatura['usina']) ? ' da usina ' . e($ucDaFatura['usina']) : ', sem usina vinculada' ?>.
+      <?php else: ?>Beneficiária<?= !empty($ucDaFatura['uc_geradora']) ? ', recebe créditos de ' . e(nome_uc(['numero_uc' => $ucDaFatura['uc_geradora'], 'apelido' => $ucDaFatura['apelido_geradora']])) : ', sem geradora vinculada' ?>.<?php endif; ?>
+      <a href="/painel/unidades.php?editar=<?= (int) $ver['unidade_id'] ?>">Editar a unidade e o vínculo</a></p>
+  <?php endif; ?></div>
   <?php if ($ver && $ver['arquivo_pdf']): ?><div class="form-acoes" style="margin:0">
     <a class="botao botao-claro" href="/painel/fatura-arquivo.php?id=<?= (int) $ver['id'] ?>">Abrir o PDF</a>
     <a class="botao botao-claro" href="/painel/fatura-arquivo.php?id=<?= (int) $ver['id'] ?>&amp;tipo=json">Baixar os dados lidos (JSON)</a>
@@ -90,9 +95,9 @@ elseif ($form):
   <?= csrf_campo() ?><input type="hidden" name="id" value="<?= (int) $f['id'] ?>">
   <div class="grade">
     <?php if ($ver): ?>
-      <label class="campo"><span>Unidade consumidora</span><input value="<?= e($ver['numero_uc']) ?>" disabled></label>
+      <label class="campo"><span>Unidade consumidora</span><input value="<?= e(nome_uc($ver)) ?>" disabled></label>
     <?php else: ?>
-      <?= selecao('unidade_id', 'Unidade consumidora', array_column($unidades, 'numero_uc', 'id'), $f['unidade_id']) ?>
+      <?= selecao('unidade_id', 'Unidade consumidora', opcoes_uc($unidades), $f['unidade_id']) ?>
     <?php endif; ?>
     <?= campo('referencia', 'Mês de referência', $f['referencia'] ? substr($f['referencia'], 0, 7) : '', 'month', 'required') ?>
     <?= $dec('valor_total', 'Total a pagar (R$)') ?>
@@ -190,9 +195,10 @@ elseif ($form):
     <thead><tr><th>Referência</th><th>Vencimento</th><th>Pagamento</th><th class="n">Valor</th><th class="n">Consumo medido (kWh)</th><th class="n">Consumo faturado (kWh)</th><th class="n">Injetado (kWh)</th><th class="n">Créditos usados (kWh)</th><th class="n">Saldo (kWh)</th></tr></thead>
     <?php foreach ($grupos as $lista): $p = $lista[0]; $sub = array_fill_keys($somar, 0.0); $saldo = null; ?>
     <tbody>
-      <tr class="grupo"><th colspan="9" scope="rowgroup">UC <?= e($p['numero_uc']) ?>
+      <tr class="grupo"><th colspan="9" scope="rowgroup"><?= e(nome_uc($p)) ?>
         <span class="etiqueta etiqueta-<?= e($p['tipo_uc']) ?>"><?= $p['tipo_uc'] === 'geradora' ? 'Geradora' : 'Beneficiária' ?></span>
-        <?php if (eh_admin()): ?><span class="grupo-nota"><?= e($p['empresa']) ?></span><?php endif; ?></th></tr>
+        <span class="grupo-nota"><?= e(endereco_uc($p)) ?><?php if (eh_admin()): ?> | <?= e($p['empresa']) ?><?php endif; ?></span>
+        <a class="grupo-link" href="/painel/unidades.php?editar=<?= (int) $p['unidade_id'] ?>">Editar unidade</a></th></tr>
       <?php foreach ($lista as $f):
           foreach ($somar as $c) { $sub[$c] += (float) $f[$c]; }
           $saldo = $f['saldo_creditos_kwh'] ?? $saldo; ?>

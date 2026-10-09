@@ -103,6 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'tipo'           => $tipo,
             'usina_id'       => ($tipo === 'geradora' && $usina && buscar_usina($usina)) ? $usina : null,
             'uc_geradora_id' => ($tipo === 'beneficiaria' && $gerad && buscar_unidade($gerad)) ? $gerad : null,
+            'apelido'        => texto($_POST['apelido'] ?? ''),
             'criado_em'      => agora(),
             'atualizado_em'  => agora(),
         ];
@@ -134,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ]);
     unset($_SESSION['anexos'][$token]);
 
-    avisar(($novaUc ? 'Unidade ' . $u['numero_uc'] . ' cadastrada. ' : '') . 'Fatura de ' . mes_br($referencia)
+    avisar(($novaUc ? 'Unidade ' . $u['numero_uc'] . ' cadastrada; o papel e o vínculo podem ser alterados em "Editar a unidade e o vínculo". ' : '') . 'Fatura de ' . mes_br($referencia)
         . ($pdfAntigo !== false ? ' substituída' : ' gravada') . ' a partir do PDF. Confira os campos abaixo.');
     redirecionar('/painel/faturas.php?ver=' . $id);
 }
@@ -184,22 +185,22 @@ if (!$lido): ?>
   <?= csrf_campo() ?><input type="hidden" name="t" value="<?= e($token) ?>">
 
   <div class="bloco">
-    <h2 style="margin-top:0">Unidade consumidora <?= e($u['numero_uc'] ?: 'não identificada') ?>
+    <h2 style="margin-top:0"><?= $unidade ? e(nome_uc($unidade)) : 'Unidade consumidora ' . e($u['numero_uc'] ?: 'não identificada') ?>
       <?php if ($unidade): ?><span class="etiqueta">Já cadastrada</span><?php else: ?><span class="etiqueta etiqueta-pendente">Nova: será cadastrada</span><?php endif; ?></h2>
+    <p class="endereco" style="margin:.4rem 0 1rem"><?= e(endereco_uc($u)) ?></p>
     <dl class="dados">
       <div><dt>Titular</dt><dd><?= e($u['titular_nome'] ?: '–') ?></dd></div>
       <div><dt>Classificação</dt><dd><?= e($u['classificacao'] ?: '–') ?></dd></div>
       <div><dt>Fornecimento</dt><dd><?= e($u['tipo_fornecimento'] ?: '–') ?></dd></div>
-      <div><dt>Endereço</dt><dd><?= e($u['endereco'] ?: '–') ?></dd></div>
-      <div><dt>Cidade</dt><dd><?= e(trim(($u['cidade'] ?? '') . ' ' . ($u['uf'] ?? '')) ?: '–') ?></dd></div>
       <div><dt>Medidor</dt><dd><?= e($u['medidor'] ?: '–') ?></dd></div>
     </dl>
     <?php if (!$unidade): ?>
     <fieldset><legend>Complete o cadastro da nova unidade</legend><div class="grade">
+      <?= campo('apelido', 'Nome ou apelido da unidade', '', 'text', 'maxlength="80" placeholder="Ex.: Pivô 13B"') ?>
       <?php if (eh_admin()): ?><?= selecao('empresa_id', 'Empresa', array_column(empresas_disponiveis(), 'nome', 'id'), 1) ?><?php endif; ?>
       <?= selecao('tipo', 'Papel na compensação', ['geradora' => 'Geradora (tem usina)', 'beneficiaria' => 'Beneficiária (recebe créditos)'], $u['tipo'], $u['tipo'] === '') ?>
       <?= selecao('usina_id', 'Usina instalada (se geradora)', array_column(usinas_visiveis(false), 'nome', 'id'), '', true) ?>
-      <?= selecao('uc_geradora_id', 'Recebe créditos da UC (se beneficiária)', array_column($geradoras, 'numero_uc', 'id'), '', true) ?>
+      <?= selecao('uc_geradora_id', 'Recebe créditos da UC (se beneficiária)', opcoes_uc($geradoras), '', true) ?>
     </div></fieldset>
     <?php endif; ?>
   </div>

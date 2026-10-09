@@ -6,7 +6,7 @@ require __DIR__ . '/../app/consultas.php';
 exigir_login();
 $pdo = db();
 
-const CAMPOS_UC = ['numero_uc', 'distribuidora', 'titular_nome', 'titular_documento', 'classificacao',
+const CAMPOS_UC = ['numero_uc', 'apelido', 'distribuidora', 'titular_nome', 'titular_documento', 'classificacao',
                    'tipo_fornecimento', 'regra_gd', 'endereco', 'cidade', 'uf', 'cep', 'medidor'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -67,17 +67,19 @@ if ($form):
         + ['id' => 0, 'empresa_id' => escopo() ?? 1, 'tipo' => 'geradora'];
     $geradoras = array_filter($unidades, fn ($g) => $g['tipo'] === 'geradora' && (int) $g['id'] !== (int) $c['id']);
     ?>
-<div class="cabecalho"><div><h1><?= $editar ? 'Editar unidade consumidora' : 'Nova unidade consumidora' ?></h1>
-  <p>Os dados estão no cabeçalho da fatura da distribuidora.</p></div></div>
+<div class="cabecalho"><div><h1><?= $editar ? e(nome_uc($editar)) : 'Nova unidade consumidora' ?></h1>
+  <p><?= $editar ? e(endereco_uc($editar)) : 'Os dados estão no cabeçalho da fatura da distribuidora.' ?></p></div>
+  <?php if ($editar): ?><a class="botao botao-claro" href="/painel/faturas.php?unidade=<?= (int) $editar['id'] ?>">Faturas desta unidade</a><?php endif; ?></div>
 <form method="post" class="bloco">
   <?= csrf_campo() ?><input type="hidden" name="id" value="<?= (int) $c['id'] ?>">
   <div class="grade">
+    <?= campo('apelido', 'Nome ou apelido da unidade', $c['apelido'], 'text', 'maxlength="80" placeholder="Ex.: Pivô 13B, Apartamento Asa Norte"') ?>
     <?= campo('numero_uc', 'Número da unidade consumidora', $c['numero_uc'], 'text', 'required') ?>
     <?= campo('distribuidora', 'Distribuidora', $c['distribuidora'], 'text', 'required') ?>
     <?php if (eh_admin()): ?><?= selecao('empresa_id', 'Empresa', array_column(empresas_disponiveis(), 'nome', 'id'), $c['empresa_id']) ?><?php endif; ?>
     <?= selecao('tipo', 'Papel na compensação', ['geradora' => 'Geradora (tem usina)', 'beneficiaria' => 'Beneficiária (recebe créditos)'], $c['tipo']) ?>
     <?= selecao('usina_id', 'Usina instalada (se geradora)', array_column(usinas_visiveis(false), 'nome', 'id'), $c['usina_id'], true) ?>
-    <?= selecao('uc_geradora_id', 'Recebe créditos da UC (se beneficiária)', array_column($geradoras, 'numero_uc', 'id'), $c['uc_geradora_id'], true) ?>
+    <?= selecao('uc_geradora_id', 'Recebe créditos da UC (se beneficiária)', opcoes_uc($geradoras), $c['uc_geradora_id'], true) ?>
     <?= campo('titular_nome', 'Titular', $c['titular_nome']) ?>
     <?= campo('titular_documento', 'CPF ou CNPJ do titular', $c['titular_documento']) ?>
     <?= campo('classificacao', 'Classificação', $c['classificacao'], 'text', 'placeholder="B2 Rural, A4 Verde..."') ?>
@@ -106,14 +108,14 @@ if ($form):
   <p class="vazio">Nenhuma unidade consumidora cadastrada.</p>
 <?php else: ?>
   <table>
-    <thead><tr><th>Número da UC</th><th>Papel</th><th>Vínculo</th><th>Distribuidora</th><th>Classificação</th><th>Titular</th><th>Cidade</th><th></th></tr></thead>
+    <thead><tr><th>Unidade e endereço</th><th>Papel</th><th>Vínculo</th><th>Distribuidora</th><th>Classificação</th><th>Titular</th><th></th></tr></thead>
     <tbody>
     <?php foreach ($unidades as $c): ?>
       <tr>
-        <td><?= e($c['numero_uc']) ?></td>
+        <td><strong><?= e(nome_uc($c)) ?></strong><br><small><?= e(endereco_uc($c)) ?></small></td>
         <td><span class="etiqueta etiqueta-<?= e($c['tipo']) ?>"><?= $c['tipo'] === 'geradora' ? 'Geradora' : 'Beneficiária' ?></span></td>
-        <td><?= $c['tipo'] === 'geradora' ? ($c['usina'] ? 'Usina ' . e($c['usina']) : 'Sem usina') : ($c['uc_geradora'] ? 'Recebe da UC ' . e($c['uc_geradora']) : 'Sem geradora') ?></td>
-        <td><?= e($c['distribuidora']) ?></td><td><?= e($c['classificacao']) ?></td><td><?= e($c['titular_nome']) ?></td><td><?= e($c['cidade']) ?></td>
+        <td><?= $c['tipo'] === 'geradora' ? ($c['usina'] ? 'Usina ' . e($c['usina']) : 'Sem usina') : ($c['uc_geradora'] ? 'Recebe de ' . e(nome_uc(['numero_uc' => $c['uc_geradora'], 'apelido' => $c['apelido_geradora']])) : 'Sem geradora') ?></td>
+        <td><?= e($c['distribuidora']) ?></td><td><?= e($c['classificacao']) ?></td><td><?= e($c['titular_nome']) ?></td>
         <td><div class="acoes">
           <a class="botao botao-claro botao-p" href="/painel/faturas.php?unidade=<?= (int) $c['id'] ?>">Faturas</a>
           <a class="botao botao-claro botao-p" href="/painel/unidades.php?editar=<?= (int) $c['id'] ?>">Editar</a>

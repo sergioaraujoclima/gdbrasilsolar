@@ -101,3 +101,9 @@ legend { font: 600 1.05rem var(--titulo); color: var(--noite); padding: 0; margi
 th { white-space: normal; vertical-align: bottom; }
 .agrupada tr.grupo th { white-space: nowrap; }
 .indicadores + .bloco, .indicadores + .usinas-resumo { margin-top: 1.25rem; }
+
+/* Endereço da unidade, sempre junto do nome para conferência */
+.endereco { color: var(--tinta-2); margin: -0.6rem 0 1rem; }
+td small { color: var(--tinta-2); font-size: 0.86rem; white-space: normal; }
+.agrupada .grupo-link { float: right; color: var(--sol); font-weight: 500; font-size: 0.9rem; }
+.agrupada tr.grupo th { white-space: normal; }
