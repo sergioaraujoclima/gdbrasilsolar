@@ -24,11 +24,22 @@ function buscar_usina(int $id): ?array
     return $s->fetch() ?: null;
 }
 
-/** Nome de exibição da unidade: o apelido, quando existe, seguido do número. */
+/**
+ * Nome da unidade: o apelido cadastrado nela ou, se não houver, o nome da
+ * usina instalada na unidade. Null quando não há nenhum dos dois.
+ */
+function apelido_uc(array $c): ?string
+{
+    return ($c['apelido'] ?? '') !== '' && $c['apelido'] !== null ? $c['apelido']
+        : (!empty($c['usina']) ? $c['usina'] : null);
+}
+
+/** Nome de exibição da unidade: o nome, quando existe, seguido do número. */
 function nome_uc(array $c): string
 {
     $numero = (string) ($c['numero_uc'] ?? '');
-    return !empty($c['apelido']) ? $c['apelido'] . ' (UC ' . $numero . ')' : 'UC ' . $numero;
+    $nome   = apelido_uc($c);
+    return $nome !== null ? $nome . ' (UC ' . $numero . ')' : 'UC ' . $numero;
 }
 
 /** Endereço da unidade em uma linha, para conferência. */
@@ -44,7 +55,7 @@ function opcoes_uc(array $unidades): array
     $o = [];
     foreach ($unidades as $c) {
         // sem apelido, o endereço ajuda a reconhecer a unidade na lista
-        $o[$c['id']] = nome_uc($c) . (empty($c['apelido']) && !empty($c['endereco'])
+        $o[$c['id']] = nome_uc($c) . (apelido_uc($c) === null && !empty($c['endereco'])
             ? ' - ' . mb_strimwidth($c['endereco'], 0, 45, '...') : '');
     }
     return $o;
@@ -121,9 +132,10 @@ function serie_geracao(string $visao, string $inicio, string $fim, ?int $usinaId
 function faturas_visiveis(?int $unidadeId = null, ?int $usinaId = null): array
 {
     $params = [];
-    $sql = 'SELECT f.*, c.numero_uc, c.apelido, c.endereco, c.cidade, c.uf, c.tipo AS tipo_uc, c.distribuidora, c.usina_id, c.uc_geradora_id, e.nome AS empresa
+    $sql = 'SELECT f.*, c.numero_uc, c.apelido, c.endereco, c.cidade, c.uf, c.tipo AS tipo_uc, c.distribuidora, c.usina_id, c.uc_geradora_id, e.nome AS empresa, us.nome AS usina
             FROM faturas f
             JOIN unidades_consumidoras c ON c.id = f.unidade_id
+            LEFT JOIN usinas us ON us.id = c.usina_id
             JOIN empresas e ON e.id = c.empresa_id
             LEFT JOIN unidades_consumidoras g ON g.id = c.uc_geradora_id
             WHERE 1=1' . filtro_empresa('c', $params);

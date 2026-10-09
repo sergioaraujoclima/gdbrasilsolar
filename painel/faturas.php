@@ -199,7 +199,7 @@ elseif ($form):
         <a class="grupo-link" href="/painel/unidades.php?editar=<?= (int) $p['unidade_id'] ?>">Editar unidade</a>
         <span class="grupo-numero">UC <?= e($p['numero_uc']) ?></span>
         <?= etiqueta_papel($p['tipo_uc']) ?>
-        <span class="grupo-apelido"><?= $p['apelido'] ? e($p['apelido']) : 'Sem nome: defina um apelido em Editar unidade' ?></span>
+        <span class="grupo-apelido"><?= e(apelido_uc($p) ?? 'Sem nome: defina um apelido em Editar unidade') ?></span>
         <span class="grupo-nota"><?= e(endereco_uc($p)) ?><?php if (eh_admin()): ?> | <?= e($p['empresa']) ?><?php endif; ?></span></th></tr>
       <?php foreach ($lista as $f):
           foreach ($somar as $c) { $sub[$c] += (float) $f[$c]; }
