@@ -4,6 +4,8 @@
 function painel_inicio(string $titulo, string $secao): void
 {
     $u = exigir_login();
+    require_once __DIR__ . '/../sincronizador-inversores/SincronizadorInversores.php';
+    SincronizadorInversores::agendarAposResposta(db(), require __DIR__ . '/../config/config.php');
     $menu = [
         'dashboard' => ['/painel/', 'Geração'],
         'usinas'    => ['/painel/usinas.php', 'Usinas'],

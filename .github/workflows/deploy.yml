@@ -90,6 +90,21 @@ jobs:
           exit 1
         fi
 
+    # Busca a geração que falta desde o último dia gravado (não derruba o deploy se a API falhar).
+    - name: 🔄 Sincronizando a geração dos inversores
+      continue-on-error: true
+      env:
+        APP_TOKEN: ${{ secrets.APP_TOKEN }}
+      run: |
+        http=$(curl -sS -m 150 -o sinc.json -w '%{http_code}' \
+          -H "X-Deploy-Token: $APP_TOKEN" "$SITE_URL/ops/growatt-sync.php?acao=recentes&origem=deploy")
+        corpo=$(head -c 500 sinc.json | tr -d '\n')
+        if [ "$http" = "200" ] && grep -q '"ok":true' sinc.json; then
+          echo "::notice::Sincronização: $corpo"
+        else
+          echo "::warning::Sincronização falhou (HTTP $http): $corpo"
+        fi
+
     # Só roda quando a mensagem do commit contém [growatt], para respeitar
     # o limite de chamadas da API.
     - name: ☀️ Testando conexão com a API da Growatt

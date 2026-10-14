@@ -182,6 +182,47 @@ class SincronizadorGrowatt
         return ['dias_atualizados' => $dias] + $this->resumo();
     }
 
+    /**
+     * Busca o que falta desde o último dia gravado de cada usina até hoje,
+     * em janelas de 7 dias. O último dia gravado é buscado de novo porque
+     * pode ter sido gravado com o dia ainda em andamento.
+     * Devolve ['dias' => n, 'usinas' => n, 'erros' => [...]].
+     */
+    public function sincronizarPendentes(int $maxJanelas = 12): array
+    {
+        $usinas = $this->pdo->query(
+            "SELECT u.id AS usina_id, u.id_externo, u.data_instalacao, i.id, i.url_base, i.chave_credencial,
+                    (SELECT MAX(g.data) FROM geracao_diaria g WHERE g.usina_id = u.id) AS ultimo_dia
+             FROM usinas u JOIN integracoes i ON i.id = u.integracao_id
+             WHERE u.fabricante = 'growatt' AND u.ativo = 1 AND i.ativo = 1"
+        )->fetchAll();
+
+        $hoje    = new DateTimeImmutable($this->hoje());
+        $dias    = 0;
+        $erros   = [];
+        $janelas = 0;
+        foreach ($usinas as $u) {
+            $ultimo = $u['ultimo_dia'] ?: ($u['data_instalacao'] ?: $this->hoje());
+            $inicio = (new DateTimeImmutable($ultimo))->modify('-1 day');
+            while ($inicio <= $hoje && $janelas < $maxJanelas) {
+                $fim = min($hoje, $inicio->modify('+' . (self::DIAS_JANELA - 1) . ' days'));
+                try {
+                    $dias += $this->gravarDias(
+                        (int) $u['usina_id'],
+                        $this->cliente($u)->energiaDiaria($u['id_externo'], $inicio->format('Y-m-d'), $fim->format('Y-m-d'))
+                    );
+                } catch (Throwable $e) {
+                    $erros[] = 'Usina ' . $u['usina_id'] . ': ' . $e->getMessage();
+                    break;
+                }
+                $janelas++;
+                $inicio = $fim->modify('+1 day');
+                usleep(800000); // respeita o limite de frequência da API
+            }
+        }
+        return ['dias' => $dias, 'usinas' => count($usinas), 'erros' => $erros];
+    }
+
     private function gravarDias(int $usinaId, array $dias): int
     {
         $ins = $this->pdo->prepare(

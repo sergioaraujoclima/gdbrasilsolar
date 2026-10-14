@@ -4,12 +4,13 @@
  *
  *   ?acao=usinas     cadastra/atualiza as usinas e abre a carga histórica
  *   ?acao=historico  processa um trecho da carga histórica (chamar até concluir)
- *   ?acao=recentes   atualiza os últimos 7 dias (rotina diária)
+ *   ?acao=recentes   busca o que falta desde o último dia gravado (sincronizador de inversores)
  *   ?acao=resumo     só mostra a situação
  */
 require __DIR__ . '/../config/conexao.php';
 require __DIR__ . '/../app/Growatt.php';
 require __DIR__ . '/../app/SincronizadorGrowatt.php';
+require __DIR__ . '/../sincronizador-inversores/SincronizadorInversores.php';
 
 exigir_token();
 header('Content-Type: application/json; charset=utf-8');
@@ -21,7 +22,8 @@ try {
     $r = match ($_GET['acao'] ?? 'resumo') {
         'usinas'    => $s->sincronizarUsinas(),
         'historico' => $s->processarHistorico(),
-        'recentes'  => $s->sincronizarRecentes(),
+        'recentes'  => (new SincronizadorInversores(db(), require __DIR__ . '/../config/config.php'))->executar($_GET['origem'] ?? 'manual')
+                        ?? ['mensagem' => 'Já havia uma sincronização em andamento.'],
         default     => $s->resumo(),
     };
     echo json_encode(['ok' => true] + $r, JSON_UNESCAPED_UNICODE);

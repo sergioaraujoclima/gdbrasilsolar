@@ -22,7 +22,8 @@ painel_inicio('Geração', 'dashboard');
 <div class="cabecalho">
   <div>
     <h1>Geração das usinas</h1>
-    <p>Energia lida do inversor até <?= data_br(hoje_local()) ?>. Os créditos vêm da última fatura de cada unidade.</p>
+    <?php $sinc = db()->query('SELECT * FROM sincronizacoes WHERE finalizado_em IS NOT NULL ORDER BY id DESC LIMIT 1')->fetch(); ?>
+    <p>Energia lida dos inversores<?php if ($sinc): ?>, última atualização em <?= (new DateTime($sinc['finalizado_em'], new DateTimeZone('UTC')))->setTimezone(new DateTimeZone('America/Sao_Paulo'))->format('d/m/Y \à\s H:i') ?><?= $sinc['sucesso'] ? '' : ' (com falha: ' . e($sinc['mensagem']) . ')' ?><?php endif; ?>. A atualização roda sozinha a cada <?= SincronizadorInversores::INTERVALO_MINUTOS ?> minutos de uso do painel. Os créditos vêm da última fatura de cada unidade.</p>
   </div>
 </div>
 
