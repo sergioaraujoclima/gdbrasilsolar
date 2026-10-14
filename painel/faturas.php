@@ -29,6 +29,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirecionar('/painel/faturas.php?' . ($id ? "ver=$id" : 'nova=1&unidade=' . (int) $unidade['id']));
     }
 
+    // Valor que não dá para entender não pode virar zero calado
+    $invalidos = array_filter(Faturas::DECIMAIS, fn ($c) => decimal_invalido($_POST[$c] ?? ''));
+    foreach (['item_quantidade', 'item_preco', 'item_valor'] as $c) {
+        foreach ((array) ($_POST[$c] ?? []) as $valor) {
+            if (decimal_invalido($valor)) {
+                $invalidos[] = 'itens da fatura';
+                break;
+            }
+        }
+    }
+    if ($invalidos) {
+        avisar('Nada foi salvo: não entendi o número digitado em ' . implode(', ', array_unique(array_map(fn ($c) => str_replace('_', ' ', $c), $invalidos)))
+            . '. Use só números, como 1.234,56.', 'erro');
+        redirecionar('/painel/faturas.php?' . ($id ? "ver=$id" : 'nova=1&unidade=' . (int) $unidade['id']));
+    }
+
     $d = ['dias_faturados' => $_POST['dias_faturados'] ?? '', 'situacao_pagamento' => $_POST['situacao_pagamento'] ?? ''];
     foreach (Faturas::DATAS as $c) {
         $d[$c] = data_iso($_POST[$c] ?? '');

@@ -180,17 +180,33 @@ function mes_br(?string $d): string
     return $d ? date('m/Y', strtotime($d)) : '–';
 }
 
-/** Aceita "1.234,56" ou "1234.56"; vazio vira null. */
+/**
+ * Converte um número digitado: aceita "1.234,56", "1234,56", "1.234", "1234.56",
+ * "R$ 1.234,56", "50,65-" e "-50,65". Vazio ou ilegível vira null.
+ */
 function decimal(mixed $v): ?float
 {
-    $v = trim((string) $v);
+    $v = preg_replace('/[^\d,.\-]/', '', (string) $v); // tira R$, kWh, espaços
+    $negativo = str_contains($v, '-');
+    $v = str_replace('-', '', $v);
     if ($v === '') {
         return null;
     }
     if (str_contains($v, ',')) {
-        $v = str_replace(['.', ','], ['', '.'], $v);
+        $v = str_replace(['.', ','], ['', '.'], $v);   // padrão brasileiro
+    } elseif (preg_match('/^[1-9]\d{0,2}(\.\d{3})+$/', $v)) {
+        $v = str_replace('.', '', $v);                 // "1.500" é mil e quinhentos
     }
-    return is_numeric($v) ? (float) $v : null;
+    if (!is_numeric($v)) {
+        return null;
+    }
+    return $negativo ? -(float) $v : (float) $v;
+}
+
+/** Campo preenchido com algo que não é número. */
+function decimal_invalido(mixed $v): bool
+{
+    return trim((string) $v) !== '' && decimal($v) === null;
 }
 
 function texto(mixed $v): ?string
