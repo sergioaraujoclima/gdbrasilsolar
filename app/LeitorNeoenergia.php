@@ -5,7 +5,9 @@
  *
  *   ['unidade' => [...], 'fatura' => [... 'itens' => [...]], 'avisos' => [...]]
  *
- * As regras seguem o layout do DANFE de energia da Neoenergia. Campos não
+ * As regras seguem o layout do DANFE de energia da Neoenergia, nos dois
+ * modelos conhecidos: o atual, com o número da UC, e o antigo, que traz só
+ * o código da instalação e o código do cliente. Campos não
  * encontrados ficam nulos e geram um aviso; nada é inventado.
  */
 class LeitorNeoenergia
@@ -31,7 +33,8 @@ class LeitorNeoenergia
         if (trim($t) === '') {
             throw new RuntimeException('Não há texto no PDF. Faturas escaneadas (imagem) não podem ser lidas.');
         }
-        if (stripos($t, 'NEOENERGIA') === false || stripos($t, 'UNIDADE CONSUMIDORA') === false) {
+        if (stripos($t, 'NEOENERGIA') === false
+            || (stripos($t, 'UNIDADE CONSUMIDORA') === false && stripos($t, 'CÓDIGO DA INSTALAÇÃO') === false)) {
             throw new RuntimeException('Este PDF não parece ser uma fatura da Neoenergia Brasília, a única distribuidora lida automaticamente por enquanto.');
         }
 
@@ -51,7 +54,7 @@ class LeitorNeoenergia
 
         /* ----- Unidade consumidora ----- */
         $endereco = [];
-        if (preg_match('/ENDEREÇO:\s*\R(.*?)\RNÚMERO DA UNIDADE CONSUMIDORA/su', $t, $m)) {
+        if (preg_match('/ENDEREÇO:\s*\R(.*?)\R(?:NÚMERO DA UNIDADE CONSUMIDORA|CÓDIGO DA INSTALAÇÃO)/su', $t, $m)) {
             $endereco = array_values(array_filter(array_map(
                 fn ($l) => preg_replace('/\s+/', ' ', trim($l)),
                 preg_split('/\R/', $m[1])
@@ -104,9 +107,11 @@ class LeitorNeoenergia
 
         /* ----- Totais por tipo de item ----- */
         $faturado = $ponta = $fora = $reservado = $demanda = null;
+        $temTE = (bool) array_filter($itens, fn ($i) => preg_match('/^Consumo[- ]TE\b/i', $i['descricao']));
         foreach ($itens as $i) {
             $d = $i['descricao'];
-            if (preg_match('/^Consumo[- ]TE\b/i', $d) && $i['quantidade'] !== null) {
+            // modelo atual: Consumo-TE (e Consumo-TUSD); modelo antigo: um item só, "Consumo"
+            if ((preg_match('/^Consumo[- ]TE\b/i', $d) || ($d === 'Consumo' && !$temTE)) && $i['quantidade'] !== null) {
                 $faturado = ($faturado ?? 0) + $i['quantidade'];
                 if (preg_match('/F\.?\s?Ponta/i', $d)) {
                     $fora = $i['quantidade'];
@@ -133,6 +138,12 @@ class LeitorNeoenergia
 
         $referencia = $um('/REF:MÊS\/ANO\s+(\d{2}\/\d{4})/u');
         $total      = $um("/TOTAL A PAGAR R\\$\s+($n)/");
+        $paga       = (bool) preg_match('/^\s*FATURA PAGA\s*$/m', $t);
+        // 2ª via de fatura já paga vem com "total a pagar" zerado: vale o total dos itens
+        $totalItens = $um("/^\s*TOTAL\s+($n)\s*$/m");
+        if ($paga && $total !== null && self::numero($total) == 0 && $totalItens !== null) {
+            $total = $totalItens;
+        }
         $contratada = $um('/Demanda Contratada\s+(\d+(?:,\d+)?)/');
 
         $unidade = [
@@ -149,6 +160,8 @@ class LeitorNeoenergia
             'uf'                    => $uf,
             'cep'                   => $cep,
             'medidor'               => $medidor,
+            'codigo_instalacao'     => $um('/CÓDIGO DA INSTALAÇÃO\s*\R\s*(\d+)/u'),
+            'codigo_cliente'        => $um('/CÓDIGO DO CLIENTE\s*\R\s*(\d+)/u') ?? $um('/CÓDIGO DÉBITO EM CONTA\s+(\d+)/u'),
             'demanda_contratada_kw' => $contratada !== null ? (float) str_replace(',', '.', $contratada) : null,
         ];
 
@@ -166,6 +179,7 @@ class LeitorNeoenergia
             'proxima_leitura'         => data_iso($lei[4] ?? ''),
             'bandeira'                => $um('/bandeira em vigor é a\s+(\p{L}+)/u'),
             'valor_total'             => $total !== null ? self::numero($total) : null,
+            'situacao_pagamento'      => $paga ? 'paga' : 'aberta',
             'consumo_medido_kwh'      => $medido,
             'consumo_faturado_kwh'    => $faturado,
             'energia_injetada_kwh'    => $injetada,
@@ -184,10 +198,8 @@ class LeitorNeoenergia
         ];
 
         /* ----- Conferências ----- */
-        foreach (['numero_uc' => 'número da unidade consumidora'] as $c => $nome) {
-            if (!$unidade[$c]) {
-                $avisos[] = "Não encontrei o $nome.";
-            }
+        if (!$unidade['numero_uc'] && !$unidade['codigo_instalacao'] && !$unidade['codigo_cliente'] && !$unidade['medidor']) {
+            $avisos[] = 'Não encontrei o número da unidade consumidora.';
         }
         foreach (['referencia' => 'mês de referência', 'valor_total' => 'total a pagar', 'vencimento' => 'vencimento',
                   'leitura_atual' => 'datas de leitura'] as $c => $nome) {

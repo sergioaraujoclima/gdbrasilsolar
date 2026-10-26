@@ -19,6 +19,28 @@ function caminho_temporario(string $pasta, string $token): string
     return $pasta . '/tmp-' . preg_replace('/[^a-f0-9]/', '', $token) . '.pdf';
 }
 
+/**
+ * Reconhece a unidade da fatura: pelo número da UC e, no modelo antigo de
+ * fatura (sem número), pelo código da instalação, código do cliente ou medidor.
+ */
+function identificar_unidade(PDO $pdo, array $u): ?array
+{
+    if (!empty($u['numero_uc']) && ($c = unidade_por_numero($pdo, $u['numero_uc']))) {
+        return $c;
+    }
+    foreach (['codigo_instalacao', 'codigo_cliente', 'medidor'] as $campo) {
+        if (!empty($u[$campo])) {
+            $s = $pdo->prepare("SELECT * FROM unidades_consumidoras WHERE distribuidora = ? AND $campo = ?");
+            $s->execute([LeitorNeoenergia::DISTRIBUIDORA, $u[$campo]]);
+            $achadas = $s->fetchAll();
+            if (count($achadas) === 1) {
+                return $achadas[0];
+            }
+        }
+    }
+    return null;
+}
+
 /** Unidade já cadastrada com este número, mesmo fora da empresa do usuário. */
 function unidade_por_numero(PDO $pdo, ?string $numero): ?array
 {
@@ -60,7 +82,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $destino = caminho_temporario($pasta, $token);
         move_uploaded_file($arq['tmp_name'], $destino);
         try {
-            $_SESSION['anexos'] = [$token => LeitorNeoenergia::lerArquivo($destino)]; // um anexo por vez
+            $lido = LeitorNeoenergia::lerArquivo($destino);
+            // Modelo antigo sem número da UC: completa pelo cadastro, se reconhecer a unidade
+            if (!$lido['unidade']['numero_uc'] && ($achada = identificar_unidade($pdo, $lido['unidade']))) {
+                $lido['unidade']['numero_uc']    = $achada['numero_uc'];
+                $lido['fatura']['numero_uc']     = $achada['numero_uc'];
+                $lido['identificada_por']        = true;
+            }
+            $_SESSION['anexos'] = [$token => $lido]; // um anexo por vez
         } catch (Throwable $e) {
             @unlink($destino);
             avisar('Não consegui ler esta fatura: ' . $e->getMessage(), 'erro');
@@ -126,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'atualizado_em'  => agora(),
         ];
         foreach (['numero_uc', 'distribuidora', 'titular_nome', 'titular_documento', 'classificacao', 'tipo_fornecimento',
-                  'regra_gd', 'endereco', 'cidade', 'uf', 'cep', 'medidor', 'demanda_contratada_kw'] as $c) {
+                  'regra_gd', 'endereco', 'cidade', 'uf', 'cep', 'medidor', 'demanda_contratada_kw', 'codigo_cliente', 'codigo_instalacao'] as $c) {
             $v[$c] = $u[$c] ?? null;
         }
         $pdo->prepare('INSERT INTO unidades_consumidoras (' . implode(', ', array_keys($v)) . ') VALUES ('
@@ -141,6 +170,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pdfAntigo = $s->fetchColumn();
 
     $id      = Faturas::salvar($pdo, (int) $unidade['id'], $referencia, $f, $f['itens']);
+    foreach (['codigo_cliente', 'codigo_instalacao'] as $c) {
+        if (!empty($u[$c])) {
+            $pdo->prepare("UPDATE unidades_consumidoras SET $c = ? WHERE id = ? AND ($c IS NULL OR $c = '')")
+                ->execute([$u[$c], $unidade['id']]);
+        }
+    }
     $arquivo = 'fatura-' . $id . '-' . bin2hex(random_bytes(6)) . '.pdf';
     rename($tmp, $pasta . '/' . $arquivo);
     if ($pdfAntigo) {
@@ -180,7 +215,7 @@ if (!$lido): ?>
 <?php else:
     $u = $lido['unidade'];
     $f = $lido['fatura'];
-    $unidade   = unidade_por_numero($pdo, $u['numero_uc']);
+    $unidade   = identificar_unidade($pdo, $u);
     $deOutra   = $unidade && escopo() !== null && (int) $unidade['empresa_id'] !== escopo();
     $ref       = referencia_iso($f['referencia'] ?? '');
     $jaExiste  = false;
@@ -194,6 +229,7 @@ if (!$lido): ?>
 <div class="cabecalho"><div><h1>Conferir a fatura lida</h1>
   <p>Nada foi gravado ainda. Confira os dados e confirme.</p></div></div>
 
+<?php if (!empty($lido['identificada_por'])): ?><p class="aviso aviso-info">Fatura no modelo antigo, sem o número da UC. Reconheci a unidade pelo código da instalação, código do cliente ou medidor; confira se é a unidade certa.</p><?php endif; ?>
 <?php foreach ($lido['avisos'] as $a): ?><p class="aviso aviso-info"><?= e($a) ?> <?= str_contains($a, 'unidade consumidora') ? 'Informe abaixo de qual unidade é esta fatura.' : 'Você poderá corrigir o campo depois de gravar.' ?></p><?php endforeach; ?>
 <?php if ($lido['soma_confere']): ?><p class="aviso">A soma dos <?= count($f['itens']) ?> itens confere com o total a pagar: <?= brl($f['valor_total']) ?>.</p><?php endif; ?>
 <?php if ($jaExiste): ?><p class="aviso aviso-info">Já existe uma fatura de <?= mes_br($ref) ?> para esta unidade. Ao confirmar, ela será substituída pelos dados deste PDF.</p><?php endif; ?>
@@ -211,6 +247,7 @@ if (!$lido): ?>
       <div><dt>Classificação</dt><dd><?= e($u['classificacao'] ?: '–') ?></dd></div>
       <div><dt>Fornecimento</dt><dd><?= e($u['tipo_fornecimento'] ?: '–') ?></dd></div>
       <div><dt>Medidor</dt><dd><?= e($u['medidor'] ?: '–') ?></dd></div>
+      <div><dt>Código do cliente / da instalação</dt><dd><?= e(($u['codigo_cliente'] ?? '') ?: '–') ?> / <?= e(($u['codigo_instalacao'] ?? '') ?: '–') ?></dd></div>
     </dl>
     <?php if (!$u['numero_uc']): ?>
     <fieldset><legend>De qual unidade é esta fatura?</legend><div class="grade">
@@ -231,7 +268,8 @@ if (!$lido): ?>
   <div class="bloco">
     <h2 style="margin-top:0">Fatura de <?= $ref ? mes_br($ref) : 'mês não identificado' ?></h2>
     <dl class="dados">
-      <div><dt>Total a pagar</dt><dd><?= brl($f['valor_total']) ?></dd></div>
+      <div><dt>Valor da fatura</dt><dd><?= brl($f['valor_total']) ?></dd></div>
+      <div><dt>Pagamento</dt><dd><?= ($f['situacao_pagamento'] ?? '') === 'paga' ? 'Paga (consta na fatura)' : 'Em aberto' ?></dd></div>
       <div><dt>Vencimento</dt><dd><?= data_br($f['vencimento']) ?></dd></div>
       <div><dt>Emissão</dt><dd><?= data_br($f['data_emissao']) ?></dd></div>
       <div><dt>Nota fiscal</dt><dd><?= e($f['numero_nf'] ?: '–') ?></dd></div>

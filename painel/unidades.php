@@ -7,7 +7,7 @@ exigir_login();
 $pdo = db();
 
 const CAMPOS_UC = ['numero_uc', 'apelido', 'distribuidora', 'titular_nome', 'titular_documento', 'classificacao',
-                   'tipo_fornecimento', 'regra_gd', 'endereco', 'cidade', 'uf', 'cep', 'medidor'];
+                   'tipo_fornecimento', 'regra_gd', 'endereco', 'cidade', 'uf', 'cep', 'medidor', 'codigo_cliente', 'codigo_instalacao'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validar();
@@ -86,6 +86,8 @@ if ($form):
     <?= campo('tipo_fornecimento', 'Tipo de fornecimento', $c['tipo_fornecimento']) ?>
     <?= selecao('regra_gd', 'Regra de compensação', ['GD I' => 'GD I', 'GD II' => 'GD II', 'GD III' => 'GD III'], $c['regra_gd'], true) ?>
     <?= campo('medidor', 'Número do medidor', $c['medidor']) ?>
+    <?= campo('codigo_cliente', 'Código do cliente (débito em conta)', $c['codigo_cliente']) ?>
+    <?= campo('codigo_instalacao', 'Código da instalação (faturas antigas)', $c['codigo_instalacao']) ?>
     <?= campo('demanda_contratada_kw', 'Demanda contratada (kW)', $c['demanda_contratada_kw'] !== '' && $c['demanda_contratada_kw'] !== null ? num($c['demanda_contratada_kw'], 2) : '', 'text', 'inputmode="decimal"') ?>
     <?= campo('endereco', 'Endereço', $c['endereco']) ?>
     <?= campo('cidade', 'Cidade', $c['cidade']) ?>
