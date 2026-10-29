@@ -117,3 +117,8 @@ td small { color: var(--tinta-2); font-size: 0.86rem; white-space: normal; }
 .agrupada .grupo-numero { font-size: 1.05rem; }
 .agrupada .grupo-apelido { display: block; font-size: 0.9rem; font-weight: 500; color: var(--sol); margin-top: 0.15rem; }
 .agrupada .grupo-nota { display: block; margin-left: 0; font-size: 0.86rem; }
+
+/* Versões de fatura canceladas: guardadas como histórico */
+tr.cancelada td { color: var(--tinta-2); }
+tr.cancelada td.n { text-decoration: line-through; }
+tr.atual td { background: #fff4d6; }

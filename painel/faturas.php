@@ -17,10 +17,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit('Fatura ou unidade não encontrada.');
     }
 
+    if (($_POST['acao'] ?? '') === 'reativar' && $fatura) {
+        Faturas::reativar($pdo, $id);
+        avisar('Esta versão voltou a ser a fatura que vale. A que estava valendo foi marcada como cancelada e guardada no histórico.');
+        redirecionar('/painel/faturas.php?ver=' . $id);
+    }
+
     if (($_POST['acao'] ?? '') === 'excluir') {
         $pdo->prepare('DELETE FROM faturas WHERE id = ?')->execute([$id]);
-        avisar('Fatura excluída.');
-        redirecionar('/painel/faturas.php');
+        // Excluir a vigente faz a versão cancelada mais recente do mês voltar a valer
+        $restaurada = null;
+        if ($fatura['situacao_registro'] === 'vigente') {
+            foreach (Faturas::versoes($pdo, (int) $fatura['unidade_id'], $fatura['referencia']) as $v) {
+                Faturas::reativar($pdo, (int) $v['id']);
+                $restaurada = (int) $v['id'];
+                break;
+            }
+        }
+        avisar('Fatura excluída.' . ($restaurada ? ' A versão anterior do mesmo mês voltou a valer.' : ''));
+        redirecionar('/painel/faturas.php' . ($restaurada ? '?ver=' . $restaurada : ''));
+    }
+
+    if ($fatura && $fatura['situacao_registro'] === 'cancelada') {
+        avisar('Esta versão está cancelada e fica só como histórico. Para editá-la, use "Tornar esta a fatura que vale".', 'erro');
+        redirecionar('/painel/faturas.php?ver=' . $id);
     }
 
     $referencia = referencia_iso($_POST['referencia'] ?? '');
@@ -67,8 +87,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        $id = Faturas::salvar($pdo, (int) $unidade['id'], $referencia, $d, $itens, $id ?: null);
-        avisar('Fatura salva.');
+        if ($id) {
+            $id = Faturas::salvar($pdo, (int) $unidade['id'], $referencia, $d, $itens, $id);
+            avisar('Fatura salva.');
+        } else {
+            // Nova fatura num mês que já tem uma: a anterior vira histórico (cancelada)
+            [$id, $anterior] = Faturas::novaVersao($pdo, (int) $unidade['id'], $referencia, $d, $itens,
+                'Substituída por fatura digitada em ' . date('d/m/Y'));
+            avisar('Fatura salva.' . ($anterior ? ' A fatura que já existia neste mês foi marcada como cancelada e guardada no histórico.' : ''));
+        }
     } catch (PDOException $e) {
         avisar('Não foi possível salvar: já existe outra fatura desta unidade no mesmo mês.', 'erro');
     }
@@ -103,10 +130,42 @@ elseif ($form):
       <?php else: ?>Beneficiária<?= !empty($ucDaFatura['uc_geradora']) ? ', recebe créditos de ' . e(nome_uc(['numero_uc' => $ucDaFatura['uc_geradora'], 'apelido' => $ucDaFatura['apelido_geradora']])) : ', sem geradora vinculada' ?>.<?php endif; ?>
       <a href="/painel/unidades.php?editar=<?= (int) $ver['unidade_id'] ?>">Editar a unidade e o vínculo</a></p>
   <?php endif; ?></div>
+  <?php if ($ver):
+      $versoes   = Faturas::versoes($pdo, (int) $ver['unidade_id'], $ver['referencia']);
+      $cancelada = $ver['situacao_registro'] === 'cancelada';
+      $vigenteId = current(array_filter($versoes, fn ($v) => $v['situacao_registro'] === 'vigente'))['id'] ?? null; ?>
+  <?php endif; ?>
   <?php if ($ver && $ver['arquivo_pdf']): ?><div class="form-acoes" style="margin:0">
     <a class="botao botao-claro" href="/painel/fatura-arquivo.php?id=<?= (int) $ver['id'] ?>">Abrir o PDF</a>
     <a class="botao botao-claro" href="/painel/fatura-arquivo.php?id=<?= (int) $ver['id'] ?>&amp;tipo=json">Baixar os dados lidos (JSON)</a>
   </div><?php endif; ?></div>
+<?php if ($ver && $cancelada): ?>
+  <p class="aviso aviso-erro"><strong>Fatura cancelada</strong> em <?= data_br($ver['cancelada_em']) ?>: <?= e($ver['motivo_cancelamento'] ?: 'substituída por nova versão') ?>.
+    Fica guardada só como histórico e não entra nos totais nem nos créditos.
+    <?php if ($vigenteId): ?><a href="/painel/faturas.php?ver=<?= (int) $vigenteId ?>">Ver a fatura que vale</a>.<?php endif; ?></p>
+<?php endif; ?>
+<?php if ($ver && count($versoes) > 1): ?>
+<div class="bloco rolagem" style="margin-bottom:1.25rem">
+  <h3 style="margin-bottom:.75rem">Versões desta fatura (<?= mes_br($ver['referencia']) ?>)</h3>
+  <table>
+    <thead><tr><th>Situação</th><th>Gravada em</th><th class="n">Valor</th><th class="n">Consumo faturado (kWh)</th><th class="n">Saldo (kWh)</th><th>Motivo do cancelamento</th><th></th></tr></thead>
+    <tbody><?php foreach ($versoes as $v): ?>
+      <tr<?= (int) $v['id'] === (int) $ver['id'] ? ' class="atual"' : '' ?>>
+        <td><span class="etiqueta etiqueta-<?= $v['situacao_registro'] === 'vigente' ? 'paga' : 'bloqueado' ?>"><?= $v['situacao_registro'] === 'vigente' ? 'Vale' : 'Cancelada' ?></span></td>
+        <td><?= data_br($v['criado_em']) ?></td>
+        <td class="n"><?= brl($v['valor_total']) ?></td>
+        <td class="n"><?= num($v['consumo_faturado_kwh']) ?></td>
+        <td class="n"><?= num($v['saldo_creditos_kwh'], 1) ?></td>
+        <td><?= e($v['motivo_cancelamento'] ?? '') ?></td>
+        <td><div class="acoes">
+          <?php if ((int) $v['id'] !== (int) $ver['id']): ?><a class="botao botao-claro botao-p" href="/painel/faturas.php?ver=<?= (int) $v['id'] ?>">Abrir</a><?php endif; ?>
+          <?php if ($v['arquivo_pdf']): ?><a class="botao botao-claro botao-p" href="/painel/fatura-arquivo.php?id=<?= (int) $v['id'] ?>">PDF</a><?php endif; ?>
+        </div></td>
+      </tr>
+    <?php endforeach; ?></tbody>
+  </table>
+</div>
+<?php endif; ?>
 <form method="post" class="bloco">
   <?= csrf_campo() ?><input type="hidden" name="id" value="<?= (int) $f['id'] ?>">
   <div class="grade">
@@ -175,20 +234,25 @@ elseif ($form):
   </fieldset>
 
   <div class="form-acoes">
-    <button class="botao">Salvar fatura</button>
+    <?php if ($ver && $cancelada): ?>
+      <button class="botao" name="acao" value="reativar" formnovalidate onclick="return confirm('Tornar esta versão a fatura que vale? A atual será marcada como cancelada.')">Tornar esta a fatura que vale</button>
+    <?php else: ?>
+      <button class="botao">Salvar fatura</button>
+    <?php endif; ?>
     <a class="botao botao-claro" href="/painel/faturas.php">Voltar</a>
     <?php if ($ver): ?><button class="botao botao-perigo" name="acao" value="excluir" formnovalidate onclick="return confirm('Excluir esta fatura?')">Excluir</button><?php endif; ?>
   </div>
 </form>
 <?php else:
-    $faturas = faturas_visiveis($filtro);
-    // Agrupa por unidade, com os meses em ordem
+    $faturas = faturas_visiveis($filtro, null, true);
+    // Agrupa por unidade, com os meses em ordem (no mesmo mês, a que vale primeiro)
     $grupos = [];
     foreach ($faturas as $f) {
         $grupos[$f['unidade_id']][] = $f;
     }
     foreach ($grupos as &$lista) {
-        usort($lista, fn ($a, $b) => strcmp($a['referencia'], $b['referencia']));
+        usort($lista, fn ($a, $b) => [$a['referencia'], $b['situacao_registro'] === 'vigente', $b['id']]
+            <=> [$b['referencia'], $a['situacao_registro'] === 'vigente', $a['id']]);
     }
     unset($lista);
     uasort($grupos, fn ($a, $b) => [$b[0]['tipo_uc'], $a[0]['numero_uc']] <=> [$a[0]['tipo_uc'], $b[0]['numero_uc']]);
@@ -217,11 +281,15 @@ elseif ($form):
         <?= etiqueta_papel($p['tipo_uc']) ?>
         <span class="grupo-apelido"><?= e(apelido_uc($p) ?? 'Sem nome: defina um apelido em Editar unidade') ?></span>
         <span class="grupo-nota"><?= e(endereco_uc($p)) ?><?php if (eh_admin()): ?> | <?= e($p['empresa']) ?><?php endif; ?></span></th></tr>
-      <?php foreach ($lista as $f):
-          foreach ($somar as $c) { $sub[$c] += (float) $f[$c]; }
-          $saldo = $f['saldo_creditos_kwh'] ?? $saldo; ?>
-      <tr>
-        <td><a href="/painel/faturas.php?ver=<?= (int) $f['id'] ?>"><?= mes_br($f['referencia']) ?></a></td>
+      <?php $validas = array_filter($lista, fn ($x) => $x['situacao_registro'] === 'vigente');
+      foreach ($lista as $f):
+          $vale = $f['situacao_registro'] === 'vigente';
+          if ($vale) {
+              foreach ($somar as $c) { $sub[$c] += (float) $f[$c]; }
+              $saldo = $f['saldo_creditos_kwh'] ?? $saldo;
+          } ?>
+      <tr<?= $vale ? '' : ' class="cancelada" title="Versão cancelada: guardada como histórico, fora dos totais"' ?>>
+        <td><a href="/painel/faturas.php?ver=<?= (int) $f['id'] ?>"><?= mes_br($f['referencia']) ?></a><?= $vale ? '' : ' <span class="etiqueta etiqueta-bloqueado">Cancelada</span>' ?></td>
         <td><?= data_br($f['vencimento']) ?></td>
         <td><span class="etiqueta etiqueta-<?= e($f['situacao_pagamento']) ?>"><?= $f['situacao_pagamento'] === 'paga' ? 'Paga' : 'Em aberto' ?></span></td>
         <td class="n"><?= brl($f['valor_total']) ?></td>
@@ -233,9 +301,9 @@ elseif ($form):
       </tr>
       <?php endforeach;
           foreach ($somar as $c) { $geral[$c] += $sub[$c]; }
-          $geral['saldo'] += (float) $saldo; $geral['faturas'] += count($lista); ?>
+          $geral['saldo'] += (float) $saldo; $geral['faturas'] += count($validas); ?>
       <tr class="subtotal">
-        <td colspan="3">Acumulado da UC (<?= count($lista) ?> fatura<?= count($lista) === 1 ? '' : 's' ?>)</td>
+        <td colspan="3">Acumulado da UC (<?= count($validas) ?> fatura<?= count($validas) === 1 ? '' : 's' ?><?= count($lista) > count($validas) ? ', sem as canceladas' : '' ?>)</td>
         <td class="n"><?= brl($sub['valor_total']) ?></td>
         <td class="n"><?= num($sub['consumo_medido_kwh']) ?></td>
         <td class="n"><?= num($sub['consumo_faturado_kwh']) ?></td>
@@ -255,7 +323,7 @@ elseif ($form):
       <td class="n"><?= num($geral['saldo'], 1) ?></td>
     </tr></tfoot>
   </table>
-  <p class="nota" style="margin-top:.9rem;color:var(--tinta-2)">Na coluna Saldo, o acumulado mostra o saldo mais recente da unidade (saldo não se soma entre meses); o total geral soma o saldo mais recente de cada unidade.</p>
+  <p class="nota" style="margin-top:.9rem;color:var(--tinta-2)">Faturas canceladas (substituídas por uma nova versão do mesmo mês) aparecem riscadas e não entram nos acumulados. Na coluna Saldo, o acumulado mostra o saldo mais recente da unidade (saldo não se soma entre meses); o total geral soma o saldo mais recente de cada unidade.</p>
 </div>
 <?php endif; ?>
 <?php endif;

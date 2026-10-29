@@ -164,12 +164,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $novaUc  = true;
     }
 
-    // PDF anterior do mesmo mês, se a fatura estiver sendo substituída
-    $s = $pdo->prepare('SELECT arquivo_pdf FROM faturas WHERE unidade_id = ? AND referencia = ?');
-    $s->execute([$unidade['id'], $referencia]);
-    $pdfAntigo = $s->fetchColumn();
-
-    $id      = Faturas::salvar($pdo, (int) $unidade['id'], $referencia, $f, $f['itens']);
+    // Se já houver fatura vigente no mês, ela vira histórico (cancelada) e esta passa a valer
+    [$id, $anterior] = Faturas::novaVersao($pdo, (int) $unidade['id'], $referencia, $f, $f['itens'],
+        texto($_POST['motivo'] ?? '') ?? 'Substituída por nova fatura anexada em ' . date('d/m/Y'));
     foreach (['codigo_cliente', 'codigo_instalacao'] as $c) {
         if (!empty($u[$c])) {
             $pdo->prepare("UPDATE unidades_consumidoras SET $c = ? WHERE id = ? AND ($c IS NULL OR $c = '')")
@@ -178,9 +175,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $arquivo = 'fatura-' . $id . '-' . bin2hex(random_bytes(6)) . '.pdf';
     rename($tmp, $pasta . '/' . $arquivo);
-    if ($pdfAntigo) {
-        @unlink($pasta . '/' . basename($pdfAntigo));
-    }
     $pdo->prepare('UPDATE faturas SET arquivo_pdf = ?, dados_extraidos = ? WHERE id = ?')->execute([
         $arquivo,
         json_encode(['unidade' => $u, 'fatura' => $f], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
@@ -189,7 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     unset($_SESSION['anexos'][$token]);
 
     avisar(($novaUc ? 'Unidade ' . $u['numero_uc'] . ' cadastrada; defina o nome/apelido dela em "Editar a unidade e o vínculo". ' : '') . 'Fatura de ' . mes_br($referencia)
-        . ($pdfAntigo !== false ? ' substituída' : ' gravada') . ' a partir do PDF. Confira os campos abaixo.');
+        . ' gravada a partir do PDF.' . ($anterior ? ' A versão anterior foi marcada como cancelada e guardada no histórico, com o PDF.' : '') . ' Confira os campos abaixo.');
     redirecionar('/painel/faturas.php?ver=' . $id);
 }
 
@@ -220,9 +214,7 @@ if (!$lido): ?>
     $ref       = referencia_iso($f['referencia'] ?? '');
     $jaExiste  = false;
     if ($unidade && $ref) {
-        $s = $pdo->prepare('SELECT 1 FROM faturas WHERE unidade_id = ? AND referencia = ?');
-        $s->execute([$unidade['id'], $ref]);
-        $jaExiste = (bool) $s->fetchColumn();
+        $jaExiste = (bool) Faturas::vigente($pdo, (int) $unidade['id'], $ref);
     }
     $geradoras = array_filter(unidades_visiveis(), fn ($g) => $g['tipo'] === 'geradora');
     ?>
@@ -232,7 +224,7 @@ if (!$lido): ?>
 <?php if (!empty($lido['identificada_por'])): ?><p class="aviso aviso-info">Fatura no modelo antigo, sem o número da UC. Reconheci a unidade pelo código da instalação, código do cliente ou medidor; confira se é a unidade certa.</p><?php endif; ?>
 <?php foreach ($lido['avisos'] as $a): ?><p class="aviso aviso-info"><?= e($a) ?> <?= str_contains($a, 'unidade consumidora') ? 'Informe abaixo de qual unidade é esta fatura.' : 'Você poderá corrigir o campo depois de gravar.' ?></p><?php endforeach; ?>
 <?php if ($lido['soma_confere']): ?><p class="aviso">A soma dos <?= count($f['itens']) ?> itens confere com o total a pagar: <?= brl($f['valor_total']) ?>.</p><?php endif; ?>
-<?php if ($jaExiste): ?><p class="aviso aviso-info">Já existe uma fatura de <?= mes_br($ref) ?> para esta unidade. Ao confirmar, ela será substituída pelos dados deste PDF.</p><?php endif; ?>
+<?php if ($jaExiste): ?><p class="aviso aviso-info">Já existe uma fatura de <?= mes_br($ref) ?> para esta unidade. Ao confirmar, esta passa a ser a fatura que vale e a anterior fica guardada no histórico como <strong>cancelada</strong>, com o PDF, para servir de prova.</p><?php endif; ?>
 <?php if ($deOutra): ?><p class="aviso aviso-erro">Esta unidade consumidora está cadastrada em outra empresa. Não é possível gravar esta fatura.</p><?php endif; ?>
 
 <form method="post">
@@ -298,6 +290,9 @@ if (!$lido): ?>
     </table></div>
   </div>
 
+  <?php if ($jaExiste): ?><div class="bloco"><div class="grade">
+    <?= campo('motivo', 'Motivo da substituição (opcional)', '', 'text', 'maxlength="255" placeholder="Ex.: refaturamento após contestação, protocolo 123456"') ?>
+  </div></div><?php endif; ?>
   <div class="form-acoes">
     <?php if (!$deOutra): ?><button class="botao" name="etapa" value="confirmar"><?= ($unidade || !$u['numero_uc']) ? 'Gravar fatura' : 'Cadastrar unidade e gravar fatura' ?></button><?php endif; ?>
     <button class="botao botao-claro" name="etapa" value="cancelar" formnovalidate>Descartar</button>

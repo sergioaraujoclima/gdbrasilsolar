@@ -26,7 +26,7 @@ class Faturas
         $v['atualizado_em']      = agora();
 
         if ($id === null) {
-            $s = $pdo->prepare('SELECT id FROM faturas WHERE unidade_id = ? AND referencia = ?');
+            $s = $pdo->prepare("SELECT id FROM faturas WHERE unidade_id = ? AND referencia = ? AND situacao_registro = 'vigente'");
             $s->execute([$unidadeId, $referencia]);
             $id = $s->fetchColumn() ?: null;
         }
@@ -61,5 +61,65 @@ class Faturas
             throw $e;
         }
         return (int) $id;
+    }
+
+    /** Fatura vigente da unidade no mês, ou null. */
+    public static function vigente(PDO $pdo, int $unidadeId, string $referencia): ?array
+    {
+        $s = $pdo->prepare("SELECT * FROM faturas WHERE unidade_id = ? AND referencia = ? AND situacao_registro = 'vigente' ORDER BY id DESC LIMIT 1");
+        $s->execute([$unidadeId, $referencia]);
+        return $s->fetch() ?: null;
+    }
+
+    /**
+     * Grava uma nova versão da fatura do mês. Se já houver uma vigente, ela é
+     * marcada como cancelada (com PDF e itens preservados) e a nova passa a valer.
+     * Devolve [id da nova, id da anterior ou null].
+     */
+    public static function novaVersao(PDO $pdo, int $unidadeId, string $referencia, array $d, array $itens, ?string $motivo = null): array
+    {
+        $anterior = self::vigente($pdo, $unidadeId, $referencia);
+        $cancelar = $pdo->prepare("UPDATE faturas SET situacao_registro = ?, cancelada_em = ?, motivo_cancelamento = ?, substituida_por = ? WHERE id = ?");
+        if ($anterior) {
+            $cancelar->execute(['cancelada', agora(), $motivo ?: 'Substituída por nova versão da fatura', null, $anterior['id']]);
+        }
+        try {
+            $id = self::salvar($pdo, $unidadeId, $referencia, $d, $itens, null);
+        } catch (Throwable $e) {
+            if ($anterior) { // volta a anterior a valer
+                $cancelar->execute(['vigente', null, null, null, $anterior['id']]);
+            }
+            throw $e;
+        }
+        if ($anterior) {
+            $pdo->prepare('UPDATE faturas SET substituida_por = ? WHERE id = ?')->execute([$id, $anterior['id']]);
+        }
+        return [$id, $anterior ? (int) $anterior['id'] : null];
+    }
+
+    /** Faz uma versão cancelada voltar a valer; a vigente do mês passa a cancelada. */
+    public static function reativar(PDO $pdo, int $id): void
+    {
+        $s = $pdo->prepare('SELECT * FROM faturas WHERE id = ?');
+        $s->execute([$id]);
+        $f = $s->fetch();
+        if (!$f || $f['situacao_registro'] === 'vigente') {
+            return;
+        }
+        $atual = self::vigente($pdo, (int) $f['unidade_id'], $f['referencia']);
+        if ($atual) {
+            $pdo->prepare("UPDATE faturas SET situacao_registro = 'cancelada', cancelada_em = ?, motivo_cancelamento = ?, substituida_por = ? WHERE id = ?")
+                ->execute([agora(), 'Versão anterior reativada', $id, $atual['id']]);
+        }
+        $pdo->prepare("UPDATE faturas SET situacao_registro = 'vigente', cancelada_em = NULL, motivo_cancelamento = NULL, substituida_por = NULL WHERE id = ?")
+            ->execute([$id]);
+    }
+
+    /** Versões do mesmo mês da unidade, da mais nova para a mais antiga. */
+    public static function versoes(PDO $pdo, int $unidadeId, string $referencia): array
+    {
+        $s = $pdo->prepare('SELECT * FROM faturas WHERE unidade_id = ? AND referencia = ? ORDER BY id DESC');
+        $s->execute([$unidadeId, $referencia]);
+        return $s->fetchAll();
     }
 }

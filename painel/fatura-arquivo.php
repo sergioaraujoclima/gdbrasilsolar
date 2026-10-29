@@ -9,7 +9,7 @@ if (!$f || !$f['arquivo_pdf']) {
     http_response_code(404);
     exit('Esta fatura não tem arquivo anexado.');
 }
-$nome = 'fatura-' . preg_replace('/\D/', '', $f['numero_uc']) . '-' . substr($f['referencia'], 0, 7);
+$nome = 'fatura-' . preg_replace('/\D/', '', $f['numero_uc']) . '-' . substr($f['referencia'], 0, 7) . ($f['situacao_registro'] === 'cancelada' ? '-cancelada-' . $f['id'] : '');
 
 if (($_GET['tipo'] ?? '') === 'json') {
     header('Content-Type: application/json; charset=utf-8');

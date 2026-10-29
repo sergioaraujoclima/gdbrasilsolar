@@ -128,8 +128,11 @@ function serie_geracao(string $visao, string $inicio, string $fim, ?int $usinaId
     return $serie;
 }
 
-/** Faturas visíveis, da mais recente para a mais antiga. */
-function faturas_visiveis(?int $unidadeId = null, ?int $usinaId = null): array
+/**
+ * Faturas visíveis, da mais recente para a mais antiga. Por padrão só as
+ * vigentes; as canceladas (versões substituídas) entram com $incluirCanceladas.
+ */
+function faturas_visiveis(?int $unidadeId = null, ?int $usinaId = null, bool $incluirCanceladas = false): array
 {
     $params = [];
     $sql = 'SELECT f.*, c.numero_uc, c.apelido, c.endereco, c.cidade, c.uf, c.tipo AS tipo_uc, c.distribuidora, c.usina_id, c.uc_geradora_id, e.nome AS empresa, us.nome AS usina
@@ -139,6 +142,9 @@ function faturas_visiveis(?int $unidadeId = null, ?int $usinaId = null): array
             JOIN empresas e ON e.id = c.empresa_id
             LEFT JOIN unidades_consumidoras g ON g.id = c.uc_geradora_id
             WHERE 1=1' . filtro_empresa('c', $params);
+    if (!$incluirCanceladas) {
+        $sql .= " AND f.situacao_registro = 'vigente'";
+    }
     if ($unidadeId !== null) {
         $sql .= ' AND f.unidade_id = ?';
         $params[] = $unidadeId;
@@ -168,7 +174,7 @@ function saldos_creditos(): array
 /** Fatura por id, somente se a unidade dela for visível ao usuário. */
 function buscar_fatura(int $id): ?array
 {
-    foreach (faturas_visiveis() as $f) {
+    foreach (faturas_visiveis(null, null, true) as $f) {
         if ((int) $f['id'] === $id) {
             return $f;
         }
