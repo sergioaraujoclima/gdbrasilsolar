@@ -164,3 +164,13 @@ jobs:
           fi
         done
         echo "::notice::Carga: $(jq -c '{concluido, usinas_detalhe}' hist.json | head -c 900)"
+
+    # Relatório de geração mensal por usina: só roda com [relatorio] na mensagem do commit
+    - name: 📊 Geração mensal por usina
+      if: contains(github.event.head_commit.message, '[relatorio]')
+      env:
+        APP_TOKEN: ${{ secrets.APP_TOKEN }}
+      run: |
+        curl -sS -m 60 -o mensal.json -H "X-Deploy-Token: $APP_TOKEN" "$SITE_URL/ops/growatt-sync.php?acao=mensal"
+        echo "::notice::Usinas: $(jq -c '.usinas' mensal.json)"
+        jq -c '.meses' mensal.json | fold -w 900 | while read -r l; do echo "::notice::$l"; done
