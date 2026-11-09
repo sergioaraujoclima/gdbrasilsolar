@@ -75,13 +75,22 @@ class LeitorNeoenergia
         // Texto sem espaços nem acentos: as frases de crédito vêm com
         // espaços no meio das palavras ("proxim o ciclo").
         $junto = strtolower(preg_replace('/\s+/', '', strtr(self::semAcento($t), ['ç' => 'c'])));
+        // Número antes de "kWh" no padrão brasileiro: "1.937" é mil novecentos e trinta e sete
         $kwh   = function (string $frase) use ($junto): ?float {
-            return preg_match('/' . $frase . '(-?\d+(?:[.,]\d+)?)kwh/', $junto, $m)
-                ? (float) str_replace(',', '.', $m[1]) : null;
+            if (!preg_match('/' . $frase . '(-?[\d.]+(?:,\d+)?)kwh/', $junto, $m)) {
+                return null;
+            }
+            $n = $m[1];
+            if (preg_match('/^-?\d{1,3}(\.\d{3})+(,\d+)?$/', $n)) {
+                $n = str_replace('.', '', $n);
+            }
+            return (float) str_replace(',', '.', $n);
         };
 
         $injetada   = $kwh('energiainjetadanomes') ?? $kwh('excedente');
-        $utilizados = $kwh('creditosutilizados') ?? $kwh('catde-');
+        // Energia compensada pelos créditos: o texto varia entre os modelos de fatura
+        $utilizados = $kwh('creditosutilizados') ?? $kwh('energiacompensada:?') ?? $kwh('compensad[ao]s?:?(?:de|no(?:mes|ciclo))?:?')
+            ?? $kwh('catde-');
         $saldo      = $kwh('saldoparaoproximociclo');
 
         $tipo = '';

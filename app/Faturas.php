@@ -63,6 +63,52 @@ class Faturas
         return (int) $id;
     }
 
+    /**
+     * Valor economizado com os créditos solares: a energia compensada (kWh)
+     * cobrada como se fosse consumo, pelos preços unitários de TUSD e TE da
+     * própria fatura (com tributos). Devolve [fatura_id => [kwh, tusd, te, valor]].
+     */
+    public static function economias(PDO $pdo, array $faturas): array
+    {
+        $ids = array_map('intval', array_column($faturas, 'id'));
+        if (!$ids) {
+            return [];
+        }
+        $s = $pdo->query('SELECT fatura_id, descricao, preco_unitario FROM fatura_itens WHERE preco_unitario IS NOT NULL AND fatura_id IN ('
+            . implode(',', $ids) . ') ORDER BY fatura_id, ordem, id');
+        $precos = [];
+        foreach ($s->fetchAll() as $i) {
+            $d = $i['descricao'];
+            // Grupo B: "Consumo-TUSD" e "Consumo-TE"; grupo A: vale o fora de ponta (horário da geração solar)
+            $chave = match (true) {
+                (bool) preg_match('/^Consumo[- ]TUSD$/i', $d)                     => 'tusd',
+                (bool) preg_match('/^Consumo[- ]TE$/i', $d)                       => 'te',
+                (bool) preg_match('/^Consumo[- ]TUSD\s*F\.?\s?Ponta/i', $d)    => 'tusd_fp',
+                (bool) preg_match('/^Consumo[- ]TE\s*F\.?\s?Ponta/i', $d)      => 'te_fp',
+                $d === 'Consumo'                                                 => 'unico', // modelo antigo: TUSD + TE juntos
+                default                                                          => null,
+            };
+            if ($chave && !isset($precos[$i['fatura_id']][$chave])) {
+                $precos[$i['fatura_id']][$chave] = (float) $i['preco_unitario'];
+            }
+        }
+
+        $r = [];
+        foreach ($faturas as $f) {
+            $kwh = $f['creditos_utilizados_kwh'];
+            $p   = $precos[$f['id']] ?? [];
+            $tusd = $p['tusd'] ?? $p['tusd_fp'] ?? null;
+            $te   = $p['te'] ?? $p['te_fp'] ?? null;
+            if ($tusd === null && $te === null && isset($p['unico'])) {
+                [$tusd, $te] = [$p['unico'], 0.0];
+            }
+            $valor = ($kwh !== null && ($tusd !== null || $te !== null))
+                ? round((float) $kwh * ((float) $tusd + (float) $te), 2) : null;
+            $r[(int) $f['id']] = ['kwh' => $kwh, 'tusd' => $tusd, 'te' => $te, 'valor' => $valor];
+        }
+        return $r;
+    }
+
     /** Fatura vigente da unidade no mês, ou null. */
     public static function vigente(PDO $pdo, int $unidadeId, string $referencia): ?array
     {

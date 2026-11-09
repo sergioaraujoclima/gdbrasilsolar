@@ -122,3 +122,7 @@ td small { color: var(--tinta-2); font-size: 0.86rem; white-space: normal; }
 tr.cancelada td { color: var(--tinta-2); }
 tr.cancelada td.n { text-decoration: line-through; }
 tr.atual td { background: #fff4d6; }
+
+/* Valor economizado com créditos */
+td.economia { color: var(--folha); font-weight: 600; }
+tr.cancelada td.economia { color: var(--tinta-2); font-weight: 400; }

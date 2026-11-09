@@ -166,6 +166,13 @@ elseif ($form):
   </table>
 </div>
 <?php endif; ?>
+<?php if ($ver && ($ec = Faturas::economias($pdo, [$ver])[(int) $ver['id']] ?? null) && $ec['valor'] !== null): ?>
+<div class="indicadores" style="margin-bottom:1.25rem"><div class="indicador indicador-credito">
+  <div class="rotulo">Valor economizado com os créditos solares</div>
+  <div class="valor"><?= brl($ec['valor']) ?></div>
+  <div class="nota"><?= num($ec['kwh']) ?> kWh compensados × (TUSD <?= num($ec['tusd'], 8) ?> + TE <?= num($ec['te'], 8) ?> R$/kWh, com tributos). É o que esta energia custaria se fosse cobrada.</div>
+</div></div>
+<?php endif; ?>
 <form method="post" class="bloco">
   <?= csrf_campo() ?><input type="hidden" name="id" value="<?= (int) $f['id'] ?>">
   <div class="grade">
@@ -196,7 +203,7 @@ elseif ($form):
     <?= $dec('consumo_medido_kwh', 'Consumo medido', 1) ?>
     <?= $dec('consumo_faturado_kwh', 'Consumo faturado', 1) ?>
     <?= $dec('energia_injetada_kwh', 'Energia injetada no mês', 1) ?>
-    <?= $dec('creditos_utilizados_kwh', 'Créditos utilizados', 1) ?>
+    <?= $dec('creditos_utilizados_kwh', 'Créditos utilizados (energia compensada)', 1) ?>
     <?= $dec('saldo_creditos_kwh', 'Saldo para o próximo ciclo', 1) ?>
   </div></fieldset>
 
@@ -246,6 +253,11 @@ elseif ($form):
 <?php else:
     $faturas = faturas_visiveis($filtro, null, true);
     // Agrupa por unidade, com os meses em ordem (no mesmo mês, a que vale primeiro)
+    $economias = Faturas::economias($pdo, $faturas);
+    foreach ($faturas as &$fx) {
+        $fx['economia'] = $economias[(int) $fx['id']]['valor'] ?? null;
+    }
+    unset($fx);
     $grupos = [];
     foreach ($faturas as $f) {
         $grupos[$f['unidade_id']][] = $f;
@@ -256,7 +268,7 @@ elseif ($form):
     }
     unset($lista);
     uasort($grupos, fn ($a, $b) => [$b[0]['tipo_uc'], $a[0]['numero_uc']] <=> [$a[0]['tipo_uc'], $b[0]['numero_uc']]);
-    $somar = ['valor_total', 'consumo_medido_kwh', 'consumo_faturado_kwh', 'energia_injetada_kwh', 'creditos_utilizados_kwh'];
+    $somar = ['valor_total', 'consumo_medido_kwh', 'consumo_faturado_kwh', 'energia_injetada_kwh', 'creditos_utilizados_kwh', 'economia'];
     $geral = array_fill_keys($somar, 0.0) + ['saldo' => 0.0, 'faturas' => 0];
     ?>
 <div class="cabecalho">
@@ -272,10 +284,10 @@ elseif ($form):
 <?php else: ?>
 <div class="bloco rolagem">
   <table class="agrupada">
-    <thead><tr><th>Referência</th><th>Vencimento</th><th>Pagamento</th><th class="n">Valor</th><th class="n">Consumo medido (kWh)</th><th class="n">Consumo faturado (kWh)</th><th class="n">Injetado (kWh)</th><th class="n">Créditos usados (kWh)</th><th class="n">Saldo (kWh)</th></tr></thead>
+    <thead><tr><th>Referência</th><th>Vencimento</th><th>Pagamento</th><th class="n">Valor</th><th class="n">Consumo medido (kWh)</th><th class="n">Consumo faturado (kWh)</th><th class="n">Injetado (kWh)</th><th class="n">Créditos usados (kWh)</th><th class="n">Valor economizado com os créditos solares</th><th class="n">Saldo (kWh)</th></tr></thead>
     <?php foreach ($grupos as $lista): $p = $lista[0]; $sub = array_fill_keys($somar, 0.0); $saldo = null; ?>
     <tbody>
-      <tr class="grupo"><th colspan="9" scope="rowgroup">
+      <tr class="grupo"><th colspan="10" scope="rowgroup">
         <a class="grupo-link" href="/painel/unidades.php?editar=<?= (int) $p['unidade_id'] ?>">Editar unidade</a>
         <span class="grupo-numero">UC <?= e($p['numero_uc']) ?></span>
         <?= etiqueta_papel($p['tipo_uc']) ?>
@@ -297,6 +309,7 @@ elseif ($form):
         <td class="n"><?= num($f['consumo_faturado_kwh']) ?></td>
         <td class="n"><?= num($f['energia_injetada_kwh']) ?></td>
         <td class="n"><?= num($f['creditos_utilizados_kwh']) ?></td>
+        <td class="n economia"<?php $ec = $economias[(int) $f['id']] ?? null; if ($ec && $ec['valor'] !== null): ?> title="<?= e(num($ec['kwh']) . ' kWh × (TUSD ' . brl($ec['tusd']) . ' + TE ' . brl($ec['te']) . ')') ?>"<?php endif; ?>><?= brl($f['economia']) ?></td>
         <td class="n"><?= num($f['saldo_creditos_kwh'], 1) ?></td>
       </tr>
       <?php endforeach;
@@ -309,6 +322,7 @@ elseif ($form):
         <td class="n"><?= num($sub['consumo_faturado_kwh']) ?></td>
         <td class="n"><?= num($sub['energia_injetada_kwh']) ?></td>
         <td class="n"><?= num($sub['creditos_utilizados_kwh']) ?></td>
+        <td class="n economia"><?= brl($sub['economia']) ?></td>
         <td class="n"><?= $saldo !== null ? num($saldo, 1) : '–' ?></td>
       </tr>
     </tbody>
@@ -320,10 +334,11 @@ elseif ($form):
       <td class="n"><?= num($geral['consumo_faturado_kwh']) ?></td>
       <td class="n"><?= num($geral['energia_injetada_kwh']) ?></td>
       <td class="n"><?= num($geral['creditos_utilizados_kwh']) ?></td>
+      <td class="n economia"><?= brl($geral['economia']) ?></td>
       <td class="n"><?= num($geral['saldo'], 1) ?></td>
     </tr></tfoot>
   </table>
-  <p class="nota" style="margin-top:.9rem;color:var(--tinta-2)">Faturas canceladas (substituídas por uma nova versão do mesmo mês) aparecem riscadas e não entram nos acumulados. Na coluna Saldo, o acumulado mostra o saldo mais recente da unidade (saldo não se soma entre meses); o total geral soma o saldo mais recente de cada unidade.</p>
+  <p class="nota" style="margin-top:.9rem;color:var(--tinta-2)">O valor economizado é a energia compensada pelos créditos (créditos usados) cobrada pelos preços unitários de TUSD e TE da própria fatura, com tributos; passe o mouse sobre o valor para ver a conta. Faturas canceladas (substituídas por uma nova versão do mesmo mês) aparecem riscadas e não entram nos acumulados. Na coluna Saldo, o acumulado mostra o saldo mais recente da unidade (saldo não se soma entre meses); o total geral soma o saldo mais recente de cada unidade.</p>
 </div>
 <?php endif; ?>
 <?php endif;
