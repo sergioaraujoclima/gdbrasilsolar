@@ -5,7 +5,8 @@ class Faturas
     public const DATAS    = ['data_emissao', 'vencimento', 'leitura_anterior', 'leitura_atual', 'proxima_leitura'];
     public const TEXTOS   = ['numero_nf', 'serie', 'chave_acesso', 'bandeira', 'observacoes'];
     public const DECIMAIS = ['valor_total', 'consumo_medido_kwh', 'consumo_faturado_kwh', 'energia_injetada_kwh',
-                             'creditos_utilizados_kwh', 'saldo_creditos_kwh', 'consumo_ponta_kwh',
+                             'creditos_utilizados_kwh', 'creditos_ponta_kwh', 'creditos_fora_ponta_kwh', 'creditos_reservado_kwh',
+                             'saldo_creditos_kwh', 'consumo_ponta_kwh',
                              'consumo_fora_ponta_kwh', 'consumo_reservado_kwh', 'demanda_medida_kw',
                              'demanda_contratada_kw', 'valor_pis', 'valor_cofins', 'valor_icms'];
 
@@ -85,6 +86,10 @@ class Faturas
                 (bool) preg_match('/^Consumo[- ]TE$/i', $d)                       => 'te',
                 (bool) preg_match('/^Consumo[- ]TUSD\s*F\.?\s?Ponta/i', $d)    => 'tusd_fp',
                 (bool) preg_match('/^Consumo[- ]TE\s*F\.?\s?Ponta/i', $d)      => 'te_fp',
+                (bool) preg_match('/^Consumo[- ]TUSD\s*N\.?\s?Ponta/i', $d)    => 'tusd_p',
+                (bool) preg_match('/^Consumo[- ]TE\s*Na\s*Ponta/i', $d)         => 'te_p',
+                (bool) preg_match('/^Consumo[- ]TUSD\s*Reserv/i', $d)            => 'tusd_r',
+                (bool) preg_match('/^Consumo[- ]TE\s*Reserv/i', $d)              => 'te_r',
                 $d === 'Consumo'                                                 => 'unico', // modelo antigo: TUSD + TE juntos
                 default                                                          => null,
             };
@@ -104,7 +109,20 @@ class Faturas
             }
             $valor = ($kwh !== null && ($tusd !== null || $te !== null))
                 ? round((float) $kwh * ((float) $tusd + (float) $te), 2) : null;
-            $r[(int) $f['id']] = ['kwh' => $kwh, 'tusd' => $tusd, 'te' => $te, 'valor' => $valor];
+
+            // Grupo A com compensação por posto: cada posto pelo seu preço (TUSD + TE)
+            $postos = [];
+            foreach (['ponta' => ['tusd_p', 'te_p'], 'fora_ponta' => ['tusd_fp', 'te_fp'], 'reservado' => ['tusd_r', 'te_r']] as $posto => [$ct, $ce]) {
+                $q = $f['creditos_' . $posto . '_kwh'] ?? null;
+                if ($q !== null && (float) $q > 0 && (isset($p[$ct]) || isset($p[$ce]))) {
+                    $postos[$posto] = ['kwh' => (float) $q, 'tusd' => $p[$ct] ?? 0.0, 'te' => $p[$ce] ?? 0.0,
+                                       'valor' => round((float) $q * (($p[$ct] ?? 0) + ($p[$ce] ?? 0)), 2)];
+                }
+            }
+            if ($postos) {
+                $valor = round(array_sum(array_column($postos, 'valor')), 2);
+            }
+            $r[(int) $f['id']] = ['kwh' => $kwh, 'tusd' => $tusd, 'te' => $te, 'valor' => $valor, 'postos' => $postos];
         }
         return $r;
     }

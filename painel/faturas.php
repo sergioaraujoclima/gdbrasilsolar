@@ -170,7 +170,10 @@ elseif ($form):
 <div class="indicadores" style="margin-bottom:1.25rem"><div class="indicador indicador-credito">
   <div class="rotulo">Valor economizado com os créditos solares</div>
   <div class="valor"><?= brl($ec['valor']) ?></div>
-  <div class="nota"><?= num($ec['kwh']) ?> kWh compensados × (TUSD <?= num($ec['tusd'], 8) ?> + TE <?= num($ec['te'], 8) ?> R$/kWh, com tributos). É o que esta energia custaria se fosse cobrada.</div>
+  <div class="nota"><?php if (!empty($ec['postos'])): $nomes = ['ponta' => 'Ponta', 'fora_ponta' => 'Fora de ponta', 'reservado' => 'Reservado']; foreach ($ec['postos'] as $po => $x): ?>
+    <?= $nomes[$po] ?>: <?= num($x['kwh'], 1) ?> kWh × (TUSD <?= num($x['tusd'], 8) ?> + TE <?= num($x['te'], 8) ?>) = <?= brl($x['valor']) ?><br>
+  <?php endforeach; ?>Compensação por posto, lida do demonstrativo de consumo. Preços com tributos.
+  <?php else: ?><?= num($ec['kwh']) ?> kWh compensados × (TUSD <?= num($ec['tusd'], 8) ?> + TE <?= num($ec['te'], 8) ?> R$/kWh, com tributos). É o que esta energia custaria se fosse cobrada.<?php endif; ?></div>
 </div></div>
 <?php endif; ?>
 <form method="post" class="bloco">
@@ -211,6 +214,9 @@ elseif ($form):
     <?= $dec('consumo_ponta_kwh', 'Consumo na ponta (kWh)') ?>
     <?= $dec('consumo_fora_ponta_kwh', 'Consumo fora de ponta (kWh)') ?>
     <?= $dec('consumo_reservado_kwh', 'Consumo reservado (kWh)') ?>
+    <?= $dec('creditos_ponta_kwh', 'Compensado na ponta (kWh)', 1) ?>
+    <?= $dec('creditos_fora_ponta_kwh', 'Compensado fora de ponta (kWh)', 1) ?>
+    <?= $dec('creditos_reservado_kwh', 'Compensado no reservado (kWh)', 1) ?>
     <?= $dec('demanda_medida_kw', 'Demanda faturada (kW)') ?>
     <?= $dec('demanda_contratada_kw', 'Demanda contratada (kW)') ?>
   </div></fieldset>
@@ -309,7 +315,7 @@ elseif ($form):
         <td class="n"><?= num($f['consumo_faturado_kwh']) ?></td>
         <td class="n"><?= num($f['energia_injetada_kwh']) ?></td>
         <td class="n"><?= num($f['creditos_utilizados_kwh']) ?></td>
-        <td class="n economia"<?php $ec = $economias[(int) $f['id']] ?? null; if ($ec && $ec['valor'] !== null): ?> title="<?= e(num($ec['kwh']) . ' kWh × (TUSD ' . brl($ec['tusd']) . ' + TE ' . brl($ec['te']) . ')') ?>"<?php endif; ?>><?= brl($f['economia']) ?></td>
+        <td class="n economia"<?php $ec = $economias[(int) $f['id']] ?? null; if ($ec && $ec['valor'] !== null): ?> title="<?= e(!empty($ec['postos']) ? 'Por posto: ' . implode('; ', array_map(fn ($po, $x) => $po . ' ' . num($x['kwh'], 1) . ' kWh = ' . brl($x['valor']), array_keys($ec['postos']), $ec['postos'])) : num($ec['kwh']) . ' kWh × (TUSD ' . brl($ec['tusd']) . ' + TE ' . brl($ec['te']) . ')') ?>"<?php endif; ?>><?= brl($f['economia']) ?></td>
         <td class="n"><?= num($f['saldo_creditos_kwh'], 1) ?></td>
       </tr>
       <?php endforeach;

@@ -25,10 +25,43 @@ class LeitorNeoenergia
         if (!$paginas) {
             throw new RuntimeException('O PDF não tem páginas legíveis.');
         }
-        return self::lerTexto($paginas[0]->getText());
+        // A página 1 tem o cabeçalho e os itens; as demais podem trazer o
+        // "Demonstrativo de consumo", com os ajustes de compensação por posto.
+        $demais = '';
+        foreach (array_slice($paginas, 1) as $p) {
+            $demais .= $p->getText() . "\n";
+        }
+        return self::lerTexto($paginas[0]->getText(), $demais);
     }
 
-    public static function lerTexto(string $t): array
+    /**
+     * Ajustes negativos de consumo ativo no "Demonstrativo de consumo"
+     * (energia compensada pelos créditos), por posto: ['ponta' => kWh, ...].
+     */
+    public static function ajustesCompensacao(string $t): array
+    {
+        $n = self::NUMERO;
+        $postos = [];
+        $re = "/^\s*Consumo Ativo(?:\s+(Na Ponta|Ponta|Reservado|Fora de Ponta|Fora Ponta))?\s+($n)\s+($n)\s+($n)\s+($n)\s+($n)\s*$/mu";
+        if (preg_match_all($re, $t, $mm, PREG_SET_ORDER)) {
+            foreach ($mm as $m) {
+                $ajuste = self::numero($m[5]);
+                if ($ajuste >= 0) {
+                    continue; // só ajuste negativo é compensação
+                }
+                $posto = match (true) {
+                    $m[1] === '' || $m[1] === null => 'unico',
+                    str_starts_with($m[1], 'Fora')  => 'fora_ponta',
+                    $m[1] === 'Reservado'          => 'reservado',
+                    default                        => 'ponta',
+                };
+                $postos[$posto] = ($postos[$posto] ?? 0) + abs($ajuste);
+            }
+        }
+        return $postos;
+    }
+
+    public static function lerTexto(string $t, string $demais = ''): array
     {
         if (trim($t) === '') {
             throw new RuntimeException('Não há texto no PDF. Faturas escaneadas (imagem) não podem ser lidas.');
@@ -89,8 +122,10 @@ class LeitorNeoenergia
 
         $injetada   = $kwh('energiainjetadanomes') ?? $kwh('excedente');
         // Energia compensada pelos créditos: o texto varia entre os modelos de fatura
+        $ajustes    = self::ajustesCompensacao($t . "\n" . $demais);
         $utilizados = $kwh('creditosutilizados') ?? $kwh('energiacompensada:?') ?? $kwh('compensad[ao]s?:?(?:de|no(?:mes|ciclo))?:?')
-            ?? $kwh('catde-');
+            ?? $kwh('catde-')
+            ?? ($ajustes ? round(array_sum($ajustes), 3) : null);
         $saldo      = $kwh('saldoparaoproximociclo');
 
         $tipo = '';
@@ -193,6 +228,9 @@ class LeitorNeoenergia
             'consumo_faturado_kwh'    => $faturado,
             'energia_injetada_kwh'    => $injetada,
             'creditos_utilizados_kwh' => $utilizados,
+            'creditos_ponta_kwh'      => isset($ajustes['ponta']) ? round($ajustes['ponta'], 3) : null,
+            'creditos_fora_ponta_kwh' => isset($ajustes['fora_ponta']) ? round($ajustes['fora_ponta'], 3) : null,
+            'creditos_reservado_kwh'  => isset($ajustes['reservado']) ? round($ajustes['reservado'], 3) : null,
             'saldo_creditos_kwh'      => $saldo,
             'consumo_ponta_kwh'       => $ponta,
             'consumo_fora_ponta_kwh'  => $fora,
@@ -215,6 +253,10 @@ class LeitorNeoenergia
             if ($fatura[$c] === null) {
                 $avisos[] = "Não encontrei: $nome.";
             }
+        }
+        if ($ajustes && $utilizados !== null && abs(array_sum($ajustes) - $utilizados) > 0.5) {
+            $avisos[] = 'A energia compensada do texto da fatura (' . $utilizados . ' kWh) difere da soma dos ajustes do demonstrativo ('
+                . round(array_sum($ajustes), 2) . ' kWh).';
         }
         $soma = round(array_sum(array_column($itens, 'valor')), 2);
         $confere = $fatura['valor_total'] !== null && abs($soma - $fatura['valor_total']) < 0.015;
